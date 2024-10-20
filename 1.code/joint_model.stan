@@ -13,7 +13,7 @@ data {
   int<lower=0> I;          // total number of identifiable interactions 
   
   int<lower=0> species_ID[N];// index matching observations to focal species (d in the manuscript)
-  #array[N] int<lower=0> species_ID
+  //array[N] int<lower=0> species_ID
   int<lower=0> perform[N];      // response variable (p in the manuscript)
     
   int<lower=0> icol[I];  // indices matching pairwise inferrable to location in interaction matrix
