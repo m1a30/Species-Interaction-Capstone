@@ -33,7 +33,8 @@ set.seed(54)
 
 # this is the more simple version of the code, is only the diverse values
   # TODO: double check how I created this dataframe
-sem_data <- read.csv("~/Documents/capstone/Parks data cleaning/bimler_sem.csv")
+        # Also make it so that the file paths are more generalized 
+sem_data <- read.csv("~/Desktop/capstone/Parks data cleaning/only_diverse_sem.csv")
 
 # 
 # # getting the alpha values/intrinsic performance data 
@@ -69,7 +70,9 @@ sim_interactions <- simdat[[3]]
 # identify focal and neighbouring species to be matched to parameter estimates
 focalID <- unique(df$focal)  # this should return the names of unique focal groups in the order
 # in which they are encountered in the dataframe - must be alphabetical
-neighbourID <- colnames(df[ , -c(1:2)]) # should be ordered focal first (alphabetically), then
+
+# 10/31: changed the -c(1:2) to -c(1:4)
+neighbourID <- colnames(df[ , -c(1:4)]) # should be ordered focal first (alphabetically), then
 # non-focals in alphabetical order
 
 # ensure neighbours are linearly independent across the whole dataset (see S1.2)
@@ -99,7 +102,7 @@ if(!all(indep == 1)) warning('WARNING neighbours are not linearly independent')
 # prepare the data into the format required by STAN and the model code
 stan.data <- data_prep(perform = 'seeds', 
                        focal = 'focal', 
-                       nonNcols = 3, # number of columns that aren't neighbour abundances
+                       nonNcols = 4, # number of columns that aren't neighbour abundances
                        df = df)
 
 
@@ -139,9 +142,27 @@ rstan::traceplot(fit, pars=c("gamma_i","ndd_betaij"))
 rstan::stan_rhat(fit, pars=c("gamma_i","ndd_betaij"))
 
 # Get the full posteriors 
-# joint.post.draws <- extract.samples(fit)
+joint.post.draws <- extract.samples(fit)
+
 # instead of using the rethinking package
-n.draws <- dim(as.matrix(fit))
+#n.draws <- dim(as.matrix(fit))
+# alternative to rethinking for pulling out posterior estimates
+
+# Get the full posteriors ----
+# ! rethinking function not working for me ----
+# joint.post.draws <- extract.samples(fit)  
+# n.draws <- dim(as.matrix(fit))[1]
+# rand.draws <- sample(1:n.draws, 1000)
+# # Get 
+# get_variables(fit)
+# 
+# joint.post.draws <- fit %>%
+#   spread_draws(beta_ij[sp]) %>%
+#   filter(.draw %in% rand.draws)%>%
+#   mutate(param = "beta") 
+# joint.post.draws
+
+
 
 # Select parameters of interest
 param.vec <- fit@model_pars[!fit@model_pars %in% c('lp__')]
@@ -211,6 +232,8 @@ colnames(inter_mat) <- neighbourID
 # print(mean_inter_mat)
 # heatmap(mean_inter_mat, Rowv = NA, Colv = NA, scale = "none", 
 #         main = "Mean Interaction Matrix", xlab = "Neighbors", ylab = "Focals")
+
+
 
 
 
