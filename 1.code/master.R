@@ -15,8 +15,6 @@ library(reshape2)
 source('data_prep.R')
 # instead of the simul_data, want our cleaned dataframe
 source('simul_data.R')
-#source("~/Documents/capstone/Parks cleaning data/sem_neighbor_focal_alone_diverse_merge.csv")
-
 
 # load simulated data 
 set.seed(54)
@@ -29,12 +27,9 @@ set.seed(54)
 
 # all of this below is for the sem data ()
 
-#sem_data <- read.csv("~/Documents/capstone/Parks data cleaning/sem_neighbor_focal_alone_diverse_merge.csv")
-
 # this is the more simple version of the code, is only the diverse values
   # TODO: double check how I created this dataframe
-        # Also make it so that the file paths are more generalized 
-sem_data <- read.csv("~/Desktop/capstone/Parks data cleaning/only_diverse_sem.csv")
+sem_data <- read.csv("../Parks data cleaning/only_diverse_sem.csv")
 
 # 
 # # getting the alpha values/intrinsic performance data 
@@ -232,7 +227,6 @@ colnames(inter_mat) <- neighbourID
 # print(mean_inter_mat)
 # heatmap(mean_inter_mat, Rowv = NA, Colv = NA, scale = "none", 
 #         main = "Mean Interaction Matrix", xlab = "Neighbors", ylab = "Focals")
-
 
 
 
