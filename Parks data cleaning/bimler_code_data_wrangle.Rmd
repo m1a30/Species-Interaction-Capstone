@@ -225,6 +225,9 @@ neighborhood_focal_sem <- neighborhood_focal_sem %>% select(all_of(new_order))
 # filling any blanks with 0s
 neighborhood_focal_sem[neighborhood_focal_sem == ''] <- 0
 
+# in the case we dont need the alones
+
+#write.csv(neighborhood_focal_sem, "only_diverse_sem.csv")
 
 ```
 
