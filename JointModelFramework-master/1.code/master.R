@@ -12,64 +12,24 @@ library(reshape2)
 library(tidyverse)
 
 # load required functions
-# make sure ur in the correct working directory
 source('data_prep.R')
-# instead of the simul_data, want our cleaned dataframe
 source('simul_data.R')
-#source("~/Documents/capstone/Parks cleaning data/sem_neighbor_focal_alone_diverse_merge.csv")
-
 
 # load simulated data 
 set.seed(54)
 
-# instead of simdat, using list(observed values df, sim_a/intrinsic performance data,
-# sim_true_alpha or interaction strengths 
-
-#simdat <- simul_data(S=3, T=3, p=0.4)   # p = proportion of interactions which are NOT observed 
-
-
-# all of this below is for the sem data ()
-
-#sem_data <- read.csv("~/Documents/capstone/Parks data cleaning/sem_neighbor_focal_alone_diverse_merge.csv")
 
 # this is the more simple version of the code, is only the diverse values
   # TODO: double check how I created this dataframe
-        # Also make it so that the file paths are more generalized 
 sem_data <- read.csv("../../Parks data cleaning/only_diverse_sem.csv")
-sem_data_with_alones <- read.csv("../../Parks data cleaning/sem_neighbor_focal_alone_diverse_merge.csv")
+
+#sem data with alones (with neighbors all zero-ed out)
+df <- read.csv("../../Parks data cleaning/sem_neighbor_focal_alone_diverse_merge.csv")
 
 #start by trying only with the focal species (add in other non-focals later once this one is working)
-df <- sem_data %>% dplyr::select(focal, PLOT, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
-head(df)
+#df <- sem_data %>% dplyr::select(focal, PLOT, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
+#head(df)
 
-
-# # 
-# # # getting the alpha values/intrinsic performance data 
-# avg_seeds <- aggregate(seeds ~ focal, data = sem_data, mean)
-# sim_a <- log(avg_seeds$seeds)
-# 
-# # 
-# # # using a regression model to find the simulated true alphas, the interaction strengths
-# # 
-# # # Example using a linear model (might need a more complex model?)
-# interaction_model <- lm(seeds ~ APOAND + CERGLO + CIRSIUM + CLAPUR + COLLIN + COLLOM + DAUCAR + EPIDEN + ERILAN + GALIUM + GERANIUM + GILCAP + HYPERNICUM + LACTUCA + LATHVIC + LEUVUL + LUPBIC + MYOSOTIS + NAVSQU + PLAFIG + PLECON + SHEARV + TRIFOLIUM + VERARV, data = sem_data)
-# sim_truealpha <- coef(interaction_model)[-1]  # Exclude the intercept
-# 
-# # converting the sim_truealpha into a matrix like they had
-# # Assuming you have S species and T neighbor species
-# S <- length(unique(sem_data$focal))
-# # getting the number of unique values
-# # TODO: confused about the simulated values?
-# T <- length(sim_truealpha)/ S  # Adjust this based on your model
-# sim_truealpha_matrix <- matrix(sim_truealpha, nrow = S, ncol = T)
-# # 
-# simdat <- list(sem_data, sim_a, sim_truealpha_matrix)
-
-
-# 11/7 note: sim_gamma and sim_interactions doesn't get used again throughout code it seems like 
-# df <- simdat[[1]]
-# sim_gamma <- simdat[[2]]
-# sim_interactions <- simdat[[3]]
 # NB: if using real data or named species, ensure they are ordered alphabetically in the dataset
 
 # identify focal and neighbouring species to be matched to parameter estimates
@@ -77,7 +37,7 @@ focalID <- unique(df$focal)  # this should return the names of unique focal grou
 # in which they are encountered in the dataframe - must be alphabetical
 
 # 10/31: changed the -c(1:2) to -c(1:4)
-neighbourID <- colnames(df[ , -c(1:3)]) # should be ordered focal first (alphabetically), then
+neighbourID <- colnames(df[ , -c(1:4)]) # should be ordered focal first (alphabetically), then
 # non-focals in alphabetical order
 
 # ensure neighbours are linearly independent across the whole dataset (see S1.2)
@@ -107,7 +67,7 @@ if(!all(indep == 1)) warning('WARNING neighbours are not linearly independent')
 # prepare the data into the format required by STAN and the model code
 stan.data <- data_prep(perform = 'seeds', 
                        focal = 'focal', 
-                       nonNcols = 3, # number of columns that aren't neighbour abundances
+                       nonNcols = 4, # number of columns that aren't neighbour abundances
                        df = df)
 
 
@@ -165,7 +125,6 @@ joint.post.draws <- extract.samples(fit)
 #   filter(.draw %in% rand.draws)%>%
 #   mutate(param = "beta") 
 # joint.post.draws
-
 
 
 # Select parameters of interest
