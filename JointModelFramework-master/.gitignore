@@ -1,0 +1,16 @@
+/4.mss/main.aux
+/4.mss/main.log
+/4.mss/main.pdf
+*.toc
+*.png
+*.docx
+*.ods
+*.Rdata
+*.svg
+*.pdf
+*.Rhistory
+*.html
+/3.analyses/smm.csv
+*.rds
+*.zip
+/2.case_study/model/*.csv
