@@ -6,6 +6,14 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores()) 
 #rstan_options(auto_write = TRUE)
 
+#install.packages('tidybayes')
+# getting the rethinking package to download on Jeff's laptop
+# https://www.rdocumentation.org/packages/rethinking/versions/1.59
+# https://github.com/rmcelreath/rethinking/issues/174
+library(tidybayes)
+library(bayesplot)
+library(devtools)
+#devtools::install_github("rmcelreath/rethinking")
 library(rethinking)
 #install.packages("reshape2")
 library(reshape2)
@@ -105,6 +113,12 @@ print(summary(fit, pars=c("gamma_i","ndd_betaij","ri_betaij"))$summary)
 rstan::traceplot(fit, pars=c("gamma_i","ndd_betaij"))
 rstan::stan_rhat(fit, pars=c("gamma_i","ndd_betaij"))
 
+# getting the traceplots (from Jeff's master.R code)
+print(mcmc_trace(fit, regex_pars = "ndd_betaij") + xlab("Post-warmup iteration"))
+print(mcmc_trace(fit, regex_pars = "ri_betaij") + xlab("Post-warmup iteration"))
+print(mcmc_trace(fit, regex_pars = "gamma_i") + xlab("Post-warmup iteration"))
+dev.off()
+
 # Get the full posteriors 
 joint.post.draws <- extract.samples(fit)
 
@@ -133,7 +147,7 @@ param.vec <- fit@model_pars[!fit@model_pars %in% c('lp__')]
 # Draw 1000 samples from the 80% posterior interval for each parameter of interest
 p.samples <- list()
 
-
+# pulling out the NDDM estimates
 p.samples <- sapply(param.vec[!param.vec %in% c('ri_betaij', 'ndd_betaij')], function(p) {
   
   cat("Inspecting parameter:", p, "\n")
