@@ -140,7 +140,7 @@ update_fruit_counts <- function(data, species_to_update, calculate_new_fruit_cou
   # 4. remove NAv and COLLOM from og dataset
   data_no_nav_collom <- data[!data$SPECIES %in% species_to_update, ]
   
-  # 5. Coalesce "fruits" for the rest of the species
+  # 5. Coalesce "fruits" for the rest of the species 
   data_no_nav_collom <- data_no_nav_collom %>% mutate(fruits = coalesce(EXACTFR, TOTALFR))
   
   # 6. select only relevant columns for merging/want to keep
@@ -205,12 +205,12 @@ neighborhood_focal_rf <- merge_neighbor_fitness(rf_updated_focals, rf_neighborho
 neighborhood_focal_wir <- merge_neighbor_fitness(wir_updated_focals, wir_neighborhoods_data)
 
 
-# common_cols <- intersect(colnames(sem_focals_dat), colnames(sem_neighborhoods_data))
+common_cols <- intersect(colnames(sem_focals_dat), colnames(sem_neighborhoods_data))
 # print(colnames(sem_focals_dat))
 # print(colnames(sem_neighborhoods_data))
 # print(common_cols)
   # it's sem_neighbors_filtered bc they had the 'Y' or 'N' focals collect column (the rest of the datasets don't have this so using the og neighborhood data for the rest)
-# neighborhood_focal_sem <- merge(sem_neighbors_filtered, sem_updated_focals, by = c(common_cols))
+neighborhood_focal_sem <- merge(sem_neighbors_filtered, sem_updated_focals, by = c(common_cols))
 
 ```
 
@@ -259,10 +259,10 @@ clean_neighborhood_focal <- function(data){
   # 1. remove unnecessary columns
   if ("`focal collect?`" %in% colnames(data)){
       data <- data %>%
-    select(-PARK, -PLOT.1, -SUBPLOT, -`focal collect?`)
+    select(-PLOT.1, -SUBPLOT, -`focal collect?`)
   } else {
     data <- data %>%
-      select(-PARK, -PLOT.1, -SUBPLOT)
+      select(-PLOT.1, -SUBPLOT)
              }
 
   
@@ -279,7 +279,7 @@ clean_neighborhood_focal <- function(data){
     filter(!is.na(seeds))
   
   # 5. reorder columns to put focal, seeds, and PLOT at front
-  columns_to_exclude <- c("focal", "seeds", "PLOT")
+  columns_to_exclude <- c("focal", "seeds", "PLOT", "PARK")
   remaining_columns <- setdiff(names(data), columns_to_exclude)
   sorted_columns <- remaining_columns[order(remaining_columns)]
   # Combine the specified columns with the sorted columns
@@ -296,6 +296,10 @@ clean_neighborhood_focal <- function(data){
 
 
 neighborhood_focal_br <- clean_neighborhood_focal(neighborhood_focal_br)
+# for some reason focal collect is still in br, hard-coding for now
+neighborhood_focal_br <- neighborhood_focal_br %>%
+    select(-`focal collect?`)
+
 neighborhood_focal_wir <- clean_neighborhood_focal(neighborhood_focal_wir)
 neighborhood_focal_rf <- clean_neighborhood_focal(neighborhood_focal_rf)
 ```
@@ -303,8 +307,6 @@ neighborhood_focal_rf <- clean_neighborhood_focal(neighborhood_focal_rf)
 
 # ADDING ALONES
 ## zeroing out in weeds, seed counts, species
-
-# also keep the PLOT column for alones, then for the rest of the entries mark them as diverse?
 ```{r}
 all_alones <- read.csv("fitness alone focals(ALL alone focals).csv")
 all_alones<- all_alones %>% rename(TOTALFR = fr1)
@@ -335,67 +337,94 @@ nav_and_collom_alone$NEW_FRUIT_COUNT <- sapply(1:nrow(nav_and_collom_alone), fun
 # Merge the new column back to the original dataframe
 all_alones <- merge(all_alones, nav_and_collom_alone[, c("SPECIES", "NEW_FRUIT_COUNT")], by = "SPECIES", all.x = TRUE)
 
+# merge all of the different fruit counts into one column using coalesce 
+all_alones <- all_alones %>% 
+  mutate(fruits = coalesce(NEW_FRUIT_COUNT, EXACTFR, TOTALFR))
 
-# Add missing columns (focals, seeds, and neighbor (weed and focal) species) to all_alones with zeros (for SEM)
-missing_cols <- setdiff(names(neighborhood_focal_sem), names(all_alones))
-all_alones[missing_cols] <- 0
+# getting rid of all columns except for PARK, SPECIES, PLOT, fruits
+all_alones <- all_alones %>% select(PARK, SPECIES, PLOT, fruits)
 
-# coalesce for new_fruit_count, then EXACTFR, then TOTALFR
+# rename SPECIES to focal and fruits to seeds
 all_alones <- all_alones %>%
-  mutate(FINAL_FRUIT_COUNT = coalesce(NEW_FRUIT_COUNT, EXACTFR, TOTALFR))
-
-# getting rid of columns we don't want 
-  # want to keep all neighbor species, fr count, species, and PLOT
-
-all_alones <- all_alones %>% select(-date, -height, -stemcount, -TOTALFR, -fr2, -fr3, -fr4, -fr5, - EXACTFR, -BIOMASS, -TOPFR, -SIDEFR, -notes, -NEW_FRUIT_COUNT, -focal, -seeds)
-
-# now filtering for SEM 
-all_alones_sem <- all_alones %>% filter (PARK=="SEM")
-
-# dropping park and rep
-all_alones_sem <- all_alones_sem %>% select (-REP, - PARK)
-
-# dropping any rows for now that dont have a final_fruit_count
-all_alones_sem <- all_alones_sem %>% filter(!is.na(FINAL_FRUIT_COUNT))
-
-
-# renaming final_fruit count seeds
-# need to alphabetize 
-all_alones_sem <- all_alones_sem %>% arrange(SPECIES)
-# changing SPECIES to focals
-all_alones_sem <- all_alones_sem %>% rename(focal = SPECIES)
-# (not necc correct) BUT changing fruits to seeds
-all_alones_sem <- all_alones_sem %>% rename(seeds = FINAL_FRUIT_COUNT)
-
-# trying to alphabetize the weed columns while leaving out seeds and focal
-
-# Specify the columns to leave out or move to the front
-columns_to_exclude <- c("focal", "seeds", "PLOT")
-# Alphabetize the remaining columns
-remaining_columns <- setdiff(names(all_alones_sem), columns_to_exclude)
-sorted_columns <- remaining_columns[order(remaining_columns)]
-# Combine the specified columns with the sorted columns
-new_order <- c(columns_to_exclude, sorted_columns)
-# Reorder the data frame
-all_alones_sem <- all_alones_sem %>% select(all_of(new_order))
+    rename(focal = SPECIES, seeds = fruits)
 
 ```
-# SEM finalized dataset
+
 ```{r}
-sem_neighbor_focal_all <- rbind(neighborhood_focal_sem, all_alones_sem)
+# currently have all of the alone data with PARK, SPECIES, PLOT, and fruits
+  # next step is to figure out how to make a function that can merge the right park diverse data with the park's neighborhood data
 
-# before saving it as a csv,for stan data we have to replace all nas with 0s!
-# also have to force the doubles to be ints, so also means rounding any decimals
+# need to filter the alones to just be BR
+alones_br <- all_alones %>% filter(PARK == "BR")
+alones_rf <- all_alones %>% filter(PARK == "RF")
+alones_wir <- all_alones %>% filter(PARK == "WIR")
 
-sem_neighbor_focal_all <- sem_neighbor_focal_all %>%  
-  mutate_all(~ ifelse(is.na(.), 0, .)) %>% 
-  mutate_if(is.double, as.integer)
 
+# find columns in diverse park data that are missing in the alones
+missing_cols_br <- setdiff(names(neighborhood_focal_br), names(alones_br))
+# add missing columns to alones_br, filling with 0s
+alones_br[missing_cols_br] <- 0
+
+# find columns in diverse park data that are missing in the alones
+missing_cols_rf <- setdiff(names(neighborhood_focal_rf), names(alones_rf))
+# add missing columns to alones_br, filling with 0s
+alones_rf[missing_cols_rf] <- 0
+
+# find columns in diverse park data that are missing in the alones
+missing_cols_wir <- setdiff(names(neighborhood_focal_wir), names(alones_wir))
+# add missing columns to alones_br, filling with 0s
+alones_wir[missing_cols_wir] <- 0
+
+# finalized datasets
+final_BR_data <- rbind(neighborhood_focal_br, alones_br)
+final_RF_data <- rbind(neighborhood_focal_rf, alones_rf)
+final_WIR_data <- rbind(neighborhood_focal_wir, alones_wir)
+
+
+# # now filtering for SEM 
+# all_alones_sem <- all_alones %>% filter (PARK=="SEM")
+
+```
+
+
+# finalized datasets
+```{r}
+
+cleaning_to_final_dataset <- function(final_data){
+
+  # before saving it as a csv,for stan data we have to replace all nas with 0s!
+  # also have to force the doubles to be ints, so also means rounding any decimals
+  neighbor_focal_all <- final_data %>%
+    mutate_all(~ ifelse(is.na(.), 0, .)) %>%
+    mutate_if(is.double, as.integer)
+  
+  
+  return (neighbor_focal_all)
+
+}
+
+rf_final_data <- cleaning_to_final_dataset(final_RF_data)
+br_final_data <- cleaning_to_final_dataset(final_BR_data)
+
+# for some reason wir has a "loc" and a "Var.35" column... hardcoding these out for now (11/11)
+wir_final_data <- cleaning_to_final_dataset(final_WIR_data)
+wir_final_data <- wir_final_data %>%
+  select(-loc, -Var.35)
+# there is also a single value "skip" hidden in the depths of the wir_final_data 
+  # hardcoding this row out 
+#   row col
+# [1,] 221  25
+wir_final_data <- wir_final_data[!apply(wir_final_data == "skip", 1, any), ]
+
+
+#colnames(wir_final_data)
 # double checking
-sapply(sem_neighbor_focal_all, anyNA)
-anyNA(sem_neighbor_focal_all)
+#anyNA(wir_final_data)
 
 # saving it as a csv!
 #write.csv(sem_neighbor_focal_all, "sem_neighbor_focal_all_11_10.csv")
+# write.csv(rf_final_data, "rf_final_data.csv")
+# write.csv(br_final_data, "br_final_data.csv")
+write.csv(wir_final_data, "wir_final_data.csv")
 
 ```
