@@ -12,8 +12,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 
-# wir_focals_dat <- read.csv("~/Documents/REU/parks data/focals/wir fitness(WIR diverse focals).csv")
-# wir_neighborhoods_data <- read.csv("~/Documents/REU/parks data/neighborhoods/wir fitness(WIR neighborhoods).csv")
+wir_focals_dat <- read.csv("focals/wir fitness(WIR diverse focals).csv")
+wir_neighborhoods_data <- read.csv("neighborhoods/wir fitness(WIR neighborhoods).csv")
 
 # br_focals_dat <- read.csv("~/Documents/REU/parks data/focals/br fitness(BR diverse focals).csv")
 # br_neighborhoods_data <- read.csv("~/Documents/REU/parks data/neighborhoods/br fitness(BR neighborhoods).csv")
@@ -39,25 +39,24 @@ fix_col_names <- function(data){
   return (data)
 }
 
-# wir_neighborhoods_data <- fix_col_names(wir_neighborhoods_data)
+wir_neighborhoods_data <- fix_col_names(wir_neighborhoods_data)
 sem_neighborhoods_data <- fix_col_names(sem_neighborhoods_data)
+
 # rf_neighborhoods_data <- fix_col_names(rf_neighborhoods_data)
 # br_neighborhoods_data <- fix_col_names(br_neighborhoods_data)
 
 # filtering the neighborhoods so that we keep only the ones that have focal collects 
   # to be merged with the focal data
-
-#unique(sem_neighborhoods_data$`focal collect?`)
 sem_neighbors_filtered <- sem_neighborhoods_data[sem_neighborhoods_data$`focal collect?` == "Y", ]
-
+# wir doesn't have a 'focal collect' column
 
 ```
 
-# cleaning the fruit counts into one column
+# cleaning the TOPFR and SIDEFR columns' counts into one column
 ```{r}
 # doing the fruit count
 calculate_new_fruit_count <- function(row, data){
-  # calculating the average side and tops in the function?
+  # calculating the average side and tops in the function
   
   average_top <- mean(data$TOPFR, na.rm = TRUE)
   average_side <- mean(data$SIDEFR, na.rm = TRUE)
@@ -72,16 +71,8 @@ calculate_new_fruit_count <- function(row, data){
 
 # only want to apply the function to NAV and COLLOM 
 nav_and_collom <- c("NAVSQU", "COLLOM")
-# nav_and_collom_alone <-  wir_focals_dat[wir_focals_dat$SPECIES %in% nav_and_collom, ]
-# 
-# # applying function to the filtered nav/collom dataset
-# nav_and_collom_alone$average_fruits <- sapply(1:nrow(nav_and_collom_alone), function(row) calculate_new_fruit_count(row, nav_and_collom_alone))
-# 
-# # Merge the new column back to the original dataframe
-# wir_focals_dat <- merge(wir_focals_dat, nav_and_collom_alone[, c("SPECIES", "average_fruits")], by = "SPECIES", all.x = TRUE)
-# 
-# wir_focals_dat <- wir_focals_dat %>%
-#   mutate(fruits = coalesce(average_fruits, EXACTFR, TOTALFR))
+
+
 ```
 
 # SEM fixing fruit counts 
@@ -91,38 +82,53 @@ nav_and_collom <- c("NAVSQU", "COLLOM")
   # new name = old name
 sem_focals_dat <- sem_focals_dat %>% rename(TOTALFR = TOTAL.FR)
 
+# filtering dataframe for just nav and collom
+nav_and_collom_only_sem <-  sem_focals_dat[sem_focals_dat$SPECIES %in% nav_and_collom, ]
 
-nav_and_collom_alone_sem <-  sem_focals_dat[sem_focals_dat$SPECIES %in% nav_and_collom, ]
+# applying function to the filtered nav/collom dataset and creating a column called 'average_fruits'
+nav_and_collom_only_sem$average_fruits <- sapply(1:nrow(nav_and_collom_only_sem), function(row) calculate_new_fruit_count(row, nav_and_collom_only_sem))
+# this is creating a new column called average_fruits
 
-# applying function to the filtered nav/collom dataset
-nav_and_collom_alone_sem$average_fruits <- sapply(1:nrow(nav_and_collom_alone_sem), function(row) calculate_new_fruit_count(row, nav_and_collom_alone_sem))
-
-# coalesce fruits into fruits
-nav_and_collom_alone_sem <- nav_and_collom_alone_sem %>%
+# JUST FOR NAV AND COLLOM, merging our new values created from the above sapply in the "average_fruits" column with all of the other fruit count columns (just so we're not losing any info...) 
+nav_and_collom_only_sem <- nav_and_collom_only_sem %>%
   mutate(fruits = coalesce(average_fruits, EXACTFR, TOTALFR))
-
-# drop the avg fruits column
-  #DF[ , !(names(DF) %in% drops)]
-
-nav_and_collom_alone_sem <- select(nav_and_collom_alone_sem, -("average_fruits"))
+#so the new column with all of the fruit counts is now in a column called "fruits"
+# but this still keeps all of the columns so there's another column in this dataframe that 
 
 # Merge the new column back to the original dataframe
-# sem_focals_dat <- merge(sem_focals_dat, nav_and_collom_alone_sem[, c("SPECIES", "average_fruits")], by = "SPECIES", all.x = TRUE)
-# trying a new way
-# removing all nav and collom instances
+# removing all nav and collom instances from the main dataframe so that we can merge our newly created fruit counts for ONLY nav and collom back into the larger dataset
 sem_focals_dat_no_nav_or_collom <- sem_focals_dat[!(sem_focals_dat$SPECIES %in% c("NAVSQU", "COLLOM")), ]
-# coalesce fruits into one fruits
+
+# coalesce fruits for epiden (EXACTFR) and the rest of the focal species (TOTALFR) into one fruits column
 sem_focals_dat_no_nav_or_collom <- sem_focals_dat_no_nav_or_collom %>%
   mutate(fruits = coalesce(EXACTFR, TOTALFR))
 
-# now merging the nav_and_collom_alone_sem with sem_focals_dat_no_nav_or_collom
-sem_updated_focals <- rbind(sem_focals_dat_no_nav_or_collom, nav_and_collom_alone_sem)
 
-# print(colnames(sem_focals_dat_no_nav_or_collom))
-# print(colnames(nav_and_collom_alone_sem))
+# we are really only interested in the columns: fruits, species, and keeping plot, plot.1, subplot, and park for merging purposes
+nav_and_collom_only_sem <- nav_and_collom_only_sem %>% select(PLOT, SPECIES, PLOT.1, SUBPLOT, fruits, PARK)
+sem_focals_dat_no_nav_or_collom <- sem_focals_dat_no_nav_or_collom %>% select(PLOT, SPECIES, PLOT.1, SUBPLOT, fruits, PARK)
+
+
+# now merging the nav_and_collom_only_sem with sem_focals_dat_no_nav_or_collom to get the full dataset!!
+sem_updated_focals <- rbind(sem_focals_dat_no_nav_or_collom, nav_and_collom_only_sem)
+```
+
+
+
+# WIR changing fruit count
+```{r}
+
+#working with wir_focals_dat
+colnames(wir_focals_dat)
+  # for fruits we have TOTALFR = the initial total fruit counts we took at the parks
+  # EXACTFR = The EPIDEN fruit counts
+  # TOPFR, SIDEFR is the top and side counts for NAVSQU and COLLOM
+
+
 
 
 ```
+
 
 
 # RF changing fruit counts (skipping for time being to focus on getting 1 complete datafrme for SEM)
@@ -145,7 +151,8 @@ sem_updated_focals <- rbind(sem_focals_dat_no_nav_or_collom, nav_and_collom_alon
 # rf_focals_dat <- rf_focals_dat %>%
 #   mutate(fruits = coalesce(average_fruits, EXACTFR, FR1))
 ```
-#br changing fruit counts (skipping for time being to focus on getting 1 complete datafrme for SEM)
+
+#BR changing fruit counts (skipping for time being to focus on getting 1 complete datafrme for SEM)
 ```{r}
 # # creating a new column to use the fruit counts instead of the inflorescence count
 # br_focals_dat$average_fruits <- rowMeans(br_focals_dat[, c('TOPFR', 'SIDEFR')], na.rm = TRUE)
@@ -180,21 +187,12 @@ neighborhood_focal_sem <- merge(sem_neighbors_filtered, sem_updated_focals, by =
 ```
 
 
-```{r}
-# for some reason I'm finding a bunch of duplicate rows? NVM
-# #new_df <- df[!duplicated(df), ]
-# no_dup_neighborhood_focal_sem <- neighborhood_focal_sem[!duplicated(neighborhood_focal_sem),]
-#  
-
-```
-
-
 # dropping/selecting columns we need
 ## focal species, seeds/fruits, all of the neighbor counts columns (for SEM)
 ```{r}
 # KEEPING A PLOT COLUMN
 
-neighborhood_focal_sem <- neighborhood_focal_sem %>% select(-PLOT.1, -SUBPLOT, -`focal collect?`, -PARK, -DATE, -REP, -HEIGHT, -STEMS, -TOTALFR, -BAGGED., -EXACTFR, -BIOMASS, -TOPFR, -SIDEFR, -NOTES )
+neighborhood_focal_sem <- neighborhood_focal_sem %>% select(-PARK, -PLOT.1, -SUBPLOT, -`focal collect?`)
 
 # renaming PLOT.y to PLOT to be able to merge with the alones
 #neighborhood_focal_sem <- neighborhood_focal_sem %>% rename(PLOT )
@@ -207,7 +205,7 @@ neighborhood_focal_sem <- neighborhood_focal_sem %>% rename(focal = SPECIES)
 # (not necc correct) BUT changing fruits to seeds
 neighborhood_focal_sem <- neighborhood_focal_sem %>% rename(seeds = fruits)
 
-# dropping any rows for now that dont have a final_fruit_count
+# dropping any rows that dont have a final_fruit_count
 neighborhood_focal_sem <- neighborhood_focal_sem %>% filter(!is.na(seeds))
 
 # trying to alphabetize the weed columns while leaving out seeds and focal
@@ -224,10 +222,6 @@ neighborhood_focal_sem <- neighborhood_focal_sem %>% select(all_of(new_order))
 
 # filling any blanks with 0s
 neighborhood_focal_sem[neighborhood_focal_sem == ''] <- 0
-
-# in the case we dont need the alones
-
-#write.csv(neighborhood_focal_sem, "only_diverse_sem.csv")
 
 ```
 
@@ -266,7 +260,7 @@ nav_and_collom_alone$NEW_FRUIT_COUNT <- sapply(1:nrow(nav_and_collom_alone), fun
 all_alones <- merge(all_alones, nav_and_collom_alone[, c("SPECIES", "NEW_FRUIT_COUNT")], by = "SPECIES", all.x = TRUE)
 
 
-# Add missing columns to all_alones with zeros (for SEM)
+# Add missing columns (focals, seeds, and neighbor (weed and focal) species) to all_alones with zeros (for SEM)
 missing_cols <- setdiff(names(neighborhood_focal_sem), names(all_alones))
 all_alones[missing_cols] <- 0
 
