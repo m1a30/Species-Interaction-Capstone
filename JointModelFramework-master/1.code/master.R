@@ -27,12 +27,17 @@ source('simul_data.R')
 set.seed(54)
 
 
-# this is the more simple version of the code, is only the diverse values
-  # TODO: double check how I created this dataframe
-#sem_data <- read.csv("../../Parks data cleaning/only_diverse_sem.csv")
-
 #sem data with alones (with neighbors all zero-ed out)
-df <- read.csv("../../Parks data cleaning/sem_neighbor_focal_all_11_10.csv")
+#df <- read.csv("../../Parks data cleaning/sem_neighbor_focal_all_11_10.csv")
+
+# br data
+#df <- read.csv("../../Parks data cleaning/br_final_data.csv")
+
+# rf data
+#df <- read.csv("../../Parks data cleaning/rf_final_data.csv")
+
+# wir data
+df <- read.csv("../../Parks data cleaning/wir_final_data.csv")
 
 #start by trying only with the focal species (add in other non-focals later once this one is working)
 df <- df %>% dplyr::select(focal, PLOT, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
