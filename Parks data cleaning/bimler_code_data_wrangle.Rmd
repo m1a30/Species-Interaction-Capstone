@@ -18,7 +18,7 @@ library(tidyverse)
 # br_focals_dat <- read.csv("~/Documents/REU/parks data/focals/br fitness(BR diverse focals).csv")
 # br_neighborhoods_data <- read.csv("~/Documents/REU/parks data/neighborhoods/br fitness(BR neighborhoods).csv")
 
-sem_focals_dat <- read.csv("~/Documents/REU/parks data/focals/sem fitness(SEM diverse focals.csv")
+sem_focals_dat <- read.csv("/sem fitness(SEM diverse focals.csv")
 sem_neighborhoods_data <- read.csv("~/Documents/REU/parks data/neighborhoods/sem fitness(sem neighborhoods).csv")
 
 
@@ -313,6 +313,9 @@ all_alones_sem <- all_alones_sem %>% select(all_of(new_order))
 # SEM finalized dataset
 ```{r}
 sem_neighbor_focal_all <- rbind(neighborhood_focal_sem, all_alones_sem)
+
+# before saving it as a csv,for stan data we have to replace all nas with 0s!
+  
 
 # saving it as a csv!
 #write.csv(sem_neighbor_focal_all, "sem_neighbor_focal_alone_diverse_merge.csv")
