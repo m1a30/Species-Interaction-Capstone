@@ -29,13 +29,13 @@ set.seed(54)
 
 # this is the more simple version of the code, is only the diverse values
   # TODO: double check how I created this dataframe
-sem_data <- read.csv("../../Parks data cleaning/only_diverse_sem.csv")
+#sem_data <- read.csv("../../Parks data cleaning/only_diverse_sem.csv")
 
 #sem data with alones (with neighbors all zero-ed out)
 df <- read.csv("../../Parks data cleaning/sem_neighbor_focal_alone_diverse_merge.csv")
 
 #start by trying only with the focal species (add in other non-focals later once this one is working)
-#df <- sem_data %>% dplyr::select(focal, PLOT, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
+df <- df %>% dplyr::select(focal, PLOT, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
 #head(df)
 
 # NB: if using real data or named species, ensure they are ordered alphabetically in the dataset
@@ -114,13 +114,22 @@ rstan::traceplot(fit, pars=c("gamma_i","ndd_betaij"))
 rstan::stan_rhat(fit, pars=c("gamma_i","ndd_betaij"))
 
 # getting the traceplots (from Jeff's master.R code)
-print(mcmc_trace(fit, regex_pars = "ndd_betaij") + xlab("Post-warmup iteration"))
-print(mcmc_trace(fit, regex_pars = "ri_betaij") + xlab("Post-warmup iteration"))
-print(mcmc_trace(fit, regex_pars = "gamma_i") + xlab("Post-warmup iteration"))
-dev.off()
+print(mcmc_trace(fit, regex_pars = "ndd_betaij"))
+print(mcmc_trace(fit, regex_pars = "ri_betaij"))
+print(mcmc_trace(fit, regex_pars = "gamma_i"))
+#dev.off()
 
 # Get the full posteriors 
 joint.post.draws <- extract.samples(fit)
+
+# Get interaction estimates
+#--------------------------
+inter_mat <- aperm(joint.post.draws$ndd_betaij, c(2, 3, 1))
+rownames(inter_mat) <- focalID
+colnames(inter_mat) <- neighbourID
+
+
+
 
 # instead of using the rethinking package
 #n.draws <- dim(as.matrix(fit))
@@ -142,54 +151,40 @@ joint.post.draws <- extract.samples(fit)
 
 
 # Select parameters of interest
-param.vec <- fit@model_pars[!fit@model_pars %in% c('lp__')]
+    # lp__ is the log probability of model
+# original code:
+#param.vec <- fit@model_pars[!fit@model_pars %in% c('lp__')]
+# but since we are just interested in the 'ndd_betaij' (for now)
+param.vec <- fit@model_pars[fit@model_pars %in% c('ndd_betaij')]
 
-# Draw 1000 samples from the 80% posterior interval for each parameter of interest
-p.samples <- list()
-
-# pulling out the NDDM estimates
-p.samples <- sapply(param.vec[!param.vec %in% c('ri_betaij', 'ndd_betaij')], function(p) {
-  
-  cat("Inspecting parameter:", p, "\n")
-  print(str(joint.post.draws[[p]]))  # Check the structure of the current element
-  
-  # If it's a matrix, use apply
-  if (is.matrix(joint.post.draws[[p]])) {
-    return(apply(joint.post.draws[[p]], 2, function(x){
-      sample(x[x > quantile(x, 0.1) & x < quantile(x, 0.9)], size = 100)
-    }))
-    
-    # If it's a vector, sample directly
-  } else if (is.vector(joint.post.draws[[p]])) {
-    return(sample(joint.post.draws[[p]][joint.post.draws[[p]] > quantile(joint.post.draws[[p]], 0.1) & joint.post.draws[[p]] < quantile(joint.post.draws[[p]], 0.9)], size = 100))
-    
-    # For unsupported structures
-  } else {
-    cat("Unsupported structure for parameter:", p, "\n")
-    return(NULL)  # Return NULL for unsupported cases
-  }
+# Draw samples from the 80% posterior interval for `ndd_betaij`
+ndd_betaij_samples <- lapply(param.vec, function(p) {
+  apply(joint.post.draws[[p]], 2, function(x) {
+    sample(x[x > quantile(x, 0.1) & x < quantile(x, 0.9)], size = 100)
+  })
 })
 
+# seeing what the structure of ndd_betaij_samples outputs
+str(ndd_betaij_samples)
 
-# 
-# p.samples <- sapply(param.vec[!param.vec %in% c('ri_betaij', 'ndd_betaij')], function(p) {
+
+# ORIGINAL CODE
+# Draw 1000 samples from the 80% posterior interval for each parameter of interest
+# p.samples <- list()
+# p.samples <- sapply(param.vec[param.vec %in% c('ndd_betaij')], function(p) {
 #   p.samples[[p]] <- apply(joint.post.draws[[p]], 2, function(x){
 #     sample(x[x > quantile(x, 0.1) & x < quantile(x, 0.9)], size = 100)
 #   })  # this only works for parameters which are vectors
 # })
 
 
-
+# ORIGINAL CODE
 # WARNING: in the STAN model for annual wildflowers, parameter 'gamma_i' lies within an exponential,
 # 'gamma_i' estimates must thus be exponentiated to return estimates of intrinsic performance
-intrinsic.perf <- exp(p.samples$gamma_i)
-colnames(intrinsic.perf) <- focalID
+# intrinsic.perf <- exp(p.samples$gamma_i)
+# colnames(intrinsic.perf) <- focalID
 
-# Get interaction estimates
-#--------------------------
-inter_mat <- aperm(joint.post.draws$ndd_betaij, c(2, 3, 1))
-rownames(inter_mat) <- focalID
-colnames(inter_mat) <- neighbourID
+
 
 # inter_mat is now a 3 dimensional array, where rows = focals, columns = neighbours and 3rd dim = samples from the posterior
 # inter_mat[ , , 1] should return a matrix consisting of one sample for every interaction 
