@@ -18,8 +18,8 @@ library(tidyverse)
 # br_focals_dat <- read.csv("~/Documents/REU/parks data/focals/br fitness(BR diverse focals).csv")
 # br_neighborhoods_data <- read.csv("~/Documents/REU/parks data/neighborhoods/br fitness(BR neighborhoods).csv")
 
-sem_focals_dat <- read.csv("/sem fitness(SEM diverse focals.csv")
-sem_neighborhoods_data <- read.csv("~/Documents/REU/parks data/neighborhoods/sem fitness(sem neighborhoods).csv")
+sem_focals_dat <- read.csv("focals/sem fitness(SEM diverse focals.csv")
+sem_neighborhoods_data <- read.csv("neighborhoods/sem fitness(sem neighborhoods).csv")
 
 
 # rf_focals_dat <- read.csv("~/Documents/REU/parks data/focals/riverfront fitness(Riverfront Diverse focals).csv")
@@ -236,7 +236,7 @@ neighborhood_focal_sem[neighborhood_focal_sem == ''] <- 0
 
 # also keep the PLOT column for alones, then for the rest of the entries mark them as diverse?
 ```{r}
-all_alones <- read.csv("~/Documents/REU/parks data/fitness alone focals(ALL alone focals).csv")
+all_alones <- read.csv("fitness alone focals(ALL alone focals).csv")
 all_alones<- all_alones %>% rename(TOTALFR = fr1)
 
 
@@ -315,9 +315,17 @@ all_alones_sem <- all_alones_sem %>% select(all_of(new_order))
 sem_neighbor_focal_all <- rbind(neighborhood_focal_sem, all_alones_sem)
 
 # before saving it as a csv,for stan data we have to replace all nas with 0s!
-  
+# also have to force the doubles to be ints, so also means rounding any decimals
+
+sem_neighbor_focal_all <- sem_neighbor_focal_all %>%  
+  mutate_all(~ ifelse(is.na(.), 0, .)) %>% 
+  mutate_if(is.double, as.integer)
+
+# double checking
+sapply(sem_neighbor_focal_all, anyNA)
+anyNA(sem_neighbor_focal_all)
 
 # saving it as a csv!
-#write.csv(sem_neighbor_focal_all, "sem_neighbor_focal_alone_diverse_merge.csv")
+#write.csv(sem_neighbor_focal_all, "sem_neighbor_focal_all_11_10.csv")
 
 ```
