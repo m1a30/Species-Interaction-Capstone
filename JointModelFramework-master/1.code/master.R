@@ -32,7 +32,7 @@ set.seed(54)
 #sem_data <- read.csv("../../Parks data cleaning/only_diverse_sem.csv")
 
 #sem data with alones (with neighbors all zero-ed out)
-df <- read.csv("../../Parks data cleaning/sem_neighbor_focal_alone_diverse_merge.csv")
+df <- read.csv("../../Parks data cleaning/sem_neighbor_focal_all_11_10.csv")
 
 #start by trying only with the focal species (add in other non-focals later once this one is working)
 df <- df %>% dplyr::select(focal, PLOT, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
@@ -44,24 +44,14 @@ df <- df %>% dplyr::select(focal, PLOT, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, G
 focalID <- unique(df$focal)  # this should return the names of unique focal groups in the order
 # in which they are encountered in the dataframe - must be alphabetical
 
-# 10/31: changed the -c(1:2) to -c(1:4)
-neighbourID <- colnames(df[ , -c(1:4)]) # should be ordered focal first (alphabetically), then
+# 11/10: changed the -c(1:2) to -c(1:3), check df for how many non neighbor cols
+neighbourID <- colnames(df[ , -c(1:3)]) # should be ordered focal first (alphabetically), then
 # non-focals in alphabetical order
 
 # ensure neighbours are linearly independent across the whole dataset (see S1.2)
 N_all <- df[ , neighbourID]
 N_all <- apply(N_all, c(1,2), as.numeric)
 X_all <- cbind(model.matrix(~as.factor(df$focal)), N_all)
-# note about using the bimler_sem.csv, it seems like when it's trying to get these into T/F there are some NA values, messing it up 
-  #  checking for na values, na values for some of the focals at sem 
-  # 
-anyNA(X_all)
-any(is.nan(X_all))
-# replacing the na values with 0!! 
-X_all[is.na(X_all)] <- 0
-# double checking for na values again
-anyNA(X_all)
-
 R_all <- pracma::rref(X_all)
 Z_all <- t(R_all) %*% R_all
 indep <- sapply(seq(1, dim(Z_all)[1], 1), function(k){ 
@@ -75,7 +65,7 @@ if(!all(indep == 1)) warning('WARNING neighbours are not linearly independent')
 # prepare the data into the format required by STAN and the model code
 stan.data <- data_prep(perform = 'seeds', 
                        focal = 'focal', 
-                       nonNcols = 4, # number of columns that aren't neighbour abundances
+                       nonNcols = 3, # number of columns that aren't neighbour abundances
                        df = df)
 
 
@@ -83,16 +73,6 @@ message(paste0('Data dimensions = ', dim(df)[1], ', ', dim(df)[2]))
 message(paste0('Number of focal groups = ', length(focalID)))
 message(paste0('Number of neighbour groups = ', length(neighbourID)))
 message(paste0('Proportion of inferrable interactions = ', sum(stan.data$Q)/(stan.data$S*stan.data$`T`)))
-
-# checking again for na values bc the fit/model is giving an error about na values
-sapply(stan.data, anyNA)
-# 10/29 I don't know exactly why this happening
-  # TODO: look more into this/data cleaning
-# # replacing the na values with 0!! 
-# X_all[is.na(X_all)] <- 0
-stan.data$perform[is.na(stan.data$perform)] <- 0 
-# now also have to force the doubles in perform to be ints
-stan.data$perform <- as.integer(round(stan.data$perform))
 
 # Run the model! 
 stan.seed <- 1234
