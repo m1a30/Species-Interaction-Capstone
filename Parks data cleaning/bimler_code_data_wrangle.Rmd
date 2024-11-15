@@ -68,6 +68,7 @@ calculate_new_fruit_count <- function(row, data){
   }
 }
 
+
 # only want to apply the function to NAV and COLLOM 
 nav_and_collom <- c("NAVSQU", "COLLOM")
 
@@ -84,13 +85,18 @@ sem_focals_dat <- sem_focals_dat %>% rename(TOTALFR = TOTAL.FR)
 # filtering dataframe for just nav and collom
 nav_and_collom_only_sem <-  sem_focals_dat[sem_focals_dat$SPECIES %in% nav_and_collom, ]
 
-# applying function to the filtered nav/collom dataset and creating a column called 'average_fruits'
-nav_and_collom_only_sem$average_fruits <- sapply(1:nrow(nav_and_collom_only_sem), function(row) calculate_new_fruit_count(row, nav_and_collom_only_sem))
-# this is creating a new column called average_fruits
+# 10.5
+# mean(nav_and_collom_only_sem$TOPFR, na.rm = TRUE)
+# 2.944444
+# mean(nav_and_collom_only_sem$SIDEFR, na.rm = TRUE)
 
-# JUST FOR NAV AND COLLOM, merging our new values created from the above sapply in the "average_fruits" column with all of the other fruit count columns (just so we're not losing any info...) 
+# applying function to the filtered nav/collom dataset and creating a column called 'new_fruit_count'
+nav_and_collom_only_sem$new_fruit_count <- sapply(1:nrow(nav_and_collom_only_sem), function(row) calculate_new_fruit_count(row, nav_and_collom_only_sem))
+# this is creating a new column called new_fruit_count
+
+# JUST FOR NAV AND COLLOM, merging our new values created from the above sapply in the "new_fruit_count", using coalesce to see if there's new values in new_fruit_count, if not, taking from TOTALFR column 
 nav_and_collom_only_sem <- nav_and_collom_only_sem %>%
-  mutate(fruits = coalesce(average_fruits, EXACTFR, TOTALFR))
+  mutate(fruits = coalesce(new_fruit_count, TOTALFR))
 #so the new column with all of the fruit counts is now in a column called "fruits"
 # but this still keeps all of the columns so there's another column in this dataframe that 
 
@@ -130,12 +136,12 @@ update_fruit_counts <- function(data, species_to_update, calculate_new_fruit_cou
   # 1. filtering for NAV and COLLOM
   species_data <- data[data$SPECIES %in% species_to_update, ]
   
-  # 2. Apply function to create "average_fruits" column
-  species_data$average_fruits <- sapply(1:nrow(species_data), function(row) calculate_new_fruit_count(row, species_data))
+  # 2. Apply function to create "new_fruit_count" column
+  species_data$new_fruit_count <- sapply(1:nrow(species_data), function(row) calculate_new_fruit_count(row, species_data))
   
   # 3. create "fruits" column using coalesce to combine fruit counts
   species_data <- species_data %>% 
-    mutate(fruits = coalesce(average_fruits, EXACTFR, TOTALFR))
+    mutate(fruits = coalesce(new_fruit_count, EXACTFR, TOTALFR))
   
   # 4. remove NAv and COLLOM from og dataset
   data_no_nav_collom <- data[!data$SPECIES %in% species_to_update, ]
@@ -380,7 +386,6 @@ final_BR_data <- rbind(neighborhood_focal_br, alones_br)
 final_RF_data <- rbind(neighborhood_focal_rf, alones_rf)
 final_WIR_data <- rbind(neighborhood_focal_wir, alones_wir)
 
-
 # # now filtering for SEM 
 # all_alones_sem <- all_alones %>% filter (PARK=="SEM")
 
@@ -425,6 +430,6 @@ wir_final_data <- wir_final_data[!apply(wir_final_data == "skip", 1, any), ]
 #write.csv(sem_neighbor_focal_all, "sem_neighbor_focal_all_11_10.csv")
 # write.csv(rf_final_data, "rf_final_data.csv")
 # write.csv(br_final_data, "br_final_data.csv")
-write.csv(wir_final_data, "wir_final_data.csv")
+#write.csv(wir_final_data, "wir_final_data.csv")
 
 ```
