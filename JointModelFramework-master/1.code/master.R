@@ -28,7 +28,7 @@ set.seed(54)
 
 
 #sem data with alones (with neighbors all zero-ed out)
-#df <- read.csv("../../Parks data cleaning/sem_neighbor_focal_all_11_10.csv")
+df <- read.csv("../../Parks data cleaning/sem_neighbor_focal_all_11_10.csv")
 
 # br data
 #df <- read.csv("../../Parks data cleaning/br_final_data.csv")
@@ -37,7 +37,7 @@ set.seed(54)
 #df <- read.csv("../../Parks data cleaning/rf_final_data.csv")
 
 # wir data
-df <- read.csv("../../Parks data cleaning/wir_final_data.csv")
+#df <- read.csv("../../Parks data cleaning/wir_final_data.csv")
 
 #start by trying only with the focal species (add in other non-focals later once this one is working)
 df <- df %>% dplyr::select(focal, PLOT, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
@@ -113,8 +113,41 @@ inter_mat <- aperm(joint.post.draws$ndd_betaij, c(2, 3, 1))
 rownames(inter_mat) <- focalID
 colnames(inter_mat) <- neighbourID
 
+# getting the mean of all the posterios 
+mean_interactions <- apply(inter_mat, c(1, 2), mean)
+library(qgraph)
 
+### trying out a visualization  ##
+all.sp <- rep("lightblue", nrow(mean_interactions)) # Example: all nodes are lightblue
 
+# Define the plotting for interaction means
+qgraph(
+  mean_interactions,  # use the mean_interactions matrix
+  layout = 'circle', 
+  negCol = rgb(red = 0, green = 0, blue = 0, alpha = 0),  # Facilitation = transparent
+  posCol = 'orange',  # Competition = orange
+  color = all.sp,  # Node colors
+  labels = rownames(mean_interactions),  # Use row names of the matrix for labels
+  fade = TRUE,
+  directed = TRUE,
+  title = 'A', 
+  title.cex = 5
+)
+
+# Define the plotting for facilitation only
+qgraph(
+  mean_interactions,  # use the mean_interactions matrix
+  layout = 'circle', 
+  negCol = 'royalblue4',  # Facilitation = blue
+  posCol = rgb(red = 0, green = 0, blue = 0, alpha = 0),  # Competition = transparent
+  color = all.sp,  # Node colors
+  labels = rownames(mean_interactions),  # Use row names of the matrix for labels
+  fade = TRUE,
+  directed = TRUE,
+  title = 'B', 
+  title.cex = 5
+)
+#######
 
 # instead of using the rethinking package
 #n.draws <- dim(as.matrix(fit))
