@@ -49,25 +49,104 @@ sem_neighbors_filtered <- sem_neighborhoods_data[sem_neighborhoods_data$`focal c
 # wir doesn't have a 'focal collect' column
 # rf also doesn't have a 'focal collect' column
 # unique(br_neighborhoods_data$`focal collect?`), br focal collect column is just blanks ("")
+
 ```
 
-# cleaning the TOPFR and SIDEFR columns' counts into one column
+# modifying column names so that names are more accurate
+```{r}
+
+# TOPFR is number of fruits on the top infloresence
+sem_focals_dat <- sem_focals_dat %>% 
+    rename("TOP_INFL_FR" = "TOPFR")
+
+# TOTALFR is the total number of infloresences 
+sem_focals_dat <- sem_focals_dat %>% 
+    rename("TOTAL_INFL" = "TOTAL.FR")
+
+# SIDEFR is the number of fruits on side infl
+sem_focals_dat <- sem_focals_dat %>% 
+    rename("SIDE_INFL_FR" = "SIDEFR")
+
+# EXACTFR is epiden fruit counts, but for places like the rf alones it looks like EXACTFR is the sum of fr1, fr2, fr3 etc 
+
+na_rows <- sem_focals_dat[is.na(sem_focals_dat$TOTAL_INFL), ]
+print(na_rows)
+
+
+
+
+
+```
+
+
+
+
+
+# cleaning the TOP_INFL_FR and SIDE_INFL_FR columns' counts into one column
+  # updating this function so that if there is only 1 TOTALFR, but there are still sidefruits, the sidefruits will be counted\
+  
+  (changing from (TOTAL_INFL - 1) to data[row, "TOTAL_INFL"], so if TOTAL_INFL is 0, the equation will still work ) 
 ```{r}
 # doing the fruit count
+  # TODO: need a statement to deal with if TOTAL_INFL is NA 
+    # returning some sort of average for Totalfruit too?
+    # would i need a statement to separately deal with each thing that's missing 
 calculate_new_fruit_count <- function(row, data){
   # calculating the average side and tops in the function
   
-  average_top <- mean(data$TOPFR, na.rm = TRUE)
-  average_side <- mean(data$SIDEFR, na.rm = TRUE)
-  
-  if(!is.na(data[row, 'TOPFR']) & !is.na(data[row, 'SIDEFR'])){
-    return((data[row, 'TOPFR']) + ((data[row, "TOTALFR"] - 1) * data[row, 'SIDEFR']))
-  }
-  else{
-    return(average_top + ((data[row, 'TOTALFR'] - 1) * average_side))
-  }
-}
+  average_top <- mean(data$TOP_INFL_FR, na.rm = TRUE)
+  average_side <- mean(data$SIDE_INFL_FR, na.rm = TRUE)
 
+  # Error checking for the specific row
+  print(paste("Processing row:", row, 
+              "TOTAL_INFL:", data[row, "TOTAL_INFL"], 
+              "TOP_INFL_FR:", data[row, "TOP_INFL_FR"], 
+              "SIDE_INFL_FR:", data[row, "SIDE_INFL_FR"]))
+
+
+  # if there is not total_infl count, I figured we should just skip it bc it's likely gone/missing (can also try and account for these above, ie getting rid of any of the rows that have a note like BT or gone)
+  if (is.na(data[row, "TOTAL_INFL"])) {
+    print(paste("Row", row, "- Skipping because TOTAL_INFL is NA"))
+    return(NA)
+  }
+  
+  # If TOTAL_INFL == 1 and TOP_INFL_FR and SIDE_INFL_FR are present
+  else if (!is.na(data[row, "TOP_INFL_FR"]) && !is.na(data[row, "SIDE_INFL_FR"]) && (data[row, "TOTAL_INFL"] == 1)) {
+    print(paste("Row", row, "- Case: TOTAL_INFL == 1"))
+    return(data[row, "TOP_INFL_FR"] + data[row, "SIDE_INFL_FR"])
+  }
+
+  # If all values are present
+  else if (!is.na(data[row, "TOTAL_INFL"]) && !is.na(data[row, "TOP_INFL_FR"]) && !is.na(data[row, "SIDE_INFL_FR"])) {
+    print(paste("Row", row, "- Case: All values present"))
+    return(data[row, "TOP_INFL_FR"] + ((data[row, "TOTAL_INFL"] - 1) * data[row, "SIDE_INFL_FR"]))
+  }
+  
+  # if side_infl and top infl are missing 
+  else if (!is.na(data[row, "TOTAL_INFL"]) && is.na(data[row, "TOP_INFL_FR"]) && is.na(data[row, "SIDE_INFL_FR"])) {
+    print(paste("Row", row, "- Case: SIDE_INFL and TOP_INFL_FR missing"))
+    return(average_top + ((data[row, "TOTAL_INFL"] - 1) * (average_side)))
+  }
+  
+  # if just side infl is missing
+  else if (!is.na(data[row, "TOTAL_INFL"]) && !is.na(data[row, "TOP_INFL_FR"]) && is.na(data[row, "SIDE_INFL_FR"])) {
+    print(paste("Row", row, "- Case: SIDE_INFL and TOP_INFL_FR missing"))
+    return(data[row, "TOP_INFL_FR"] + ((data[row, "TOTAL_INFL"] - 1) * (average_side)))
+  }
+  
+  # if just top infl is missing 
+    else if (!is.na(data[row, "TOTAL_INFL"]) && is.na(data[row, "TOP_INFL_FR"]) && !is.na(data[row, "SIDE_INFL_FR"])) {
+    print(paste("Row", row, "- Case: SIDE_INFL and TOP_INFL_FR missing"))
+    return(average_top + ((data[row, "TOTAL_INFL"] - 1) * (average_side)))
+    }
+  
+  # Catch-all for unhandled cases
+  else {
+    print(paste("Row", row, "- Case: Unhandled"))
+    return(NA)
+  }
+  
+  }
 
 # only want to apply the function to NAV and COLLOM 
 nav_and_collom <- c("NAVSQU", "COLLOM")
@@ -77,36 +156,33 @@ nav_and_collom <- c("NAVSQU", "COLLOM")
 
 # SEM fixing fruit counts 
 ```{r}
-###
-# modifying TOTAL.FR to TOTALFR for fxn to work
-  # new name = old name
-sem_focals_dat <- sem_focals_dat %>% rename(TOTALFR = TOTAL.FR)
+
+# TODO: Think about what to do about the rows with special notes like BT, BT no fruits?, couldn't find, BT Fruit gone (leaning towards just dropping these)
+#sem_focals_dat[sem_focals_dat$NOTES != "", ]
+# would mean dropping 18 rows out of 203 rows 
+
+
 
 # filtering dataframe for just nav and collom
 nav_and_collom_only_sem <-  sem_focals_dat[sem_focals_dat$SPECIES %in% nav_and_collom, ]
 
-# 10.5
-# mean(nav_and_collom_only_sem$TOPFR, na.rm = TRUE)
-# 2.944444
-# mean(nav_and_collom_only_sem$SIDEFR, na.rm = TRUE)
-
 # applying function to the filtered nav/collom dataset and creating a column called 'new_fruit_count'
 nav_and_collom_only_sem$new_fruit_count <- sapply(1:nrow(nav_and_collom_only_sem), function(row) calculate_new_fruit_count(row, nav_and_collom_only_sem))
-# this is creating a new column called new_fruit_count
 
-# JUST FOR NAV AND COLLOM, merging our new values created from the above sapply in the "new_fruit_count", using coalesce to see if there's new values in new_fruit_count, if not, taking from TOTALFR column 
+
+# JUST FOR NAV AND COLLOM, merging our new values created from the above sapply in the "new_fruit_count", using coalesce to see if there's new values in new_fruit_count, if not, taking from TOTAL_INFL column 
 nav_and_collom_only_sem <- nav_and_collom_only_sem %>%
-  mutate(fruits = coalesce(new_fruit_count, TOTALFR))
+  mutate(fruits = coalesce(new_fruit_count, TOTAL_INFL))
 #so the new column with all of the fruit counts is now in a column called "fruits"
-# but this still keeps all of the columns so there's another column in this dataframe that 
+
 
 # Merge the new column back to the original dataframe
 # removing all nav and collom instances from the main dataframe so that we can merge our newly created fruit counts for ONLY nav and collom back into the larger dataset
 sem_focals_dat_no_nav_or_collom <- sem_focals_dat[!(sem_focals_dat$SPECIES %in% c("NAVSQU", "COLLOM")), ]
 
-# coalesce fruits for epiden (EXACTFR) and the rest of the focal species (TOTALFR) into one fruits column
+# coalesce fruits for epiden (EXACTFR) and the rest of the focal species (TOTAL_INFL) into one fruits column
 sem_focals_dat_no_nav_or_collom <- sem_focals_dat_no_nav_or_collom %>%
-  mutate(fruits = coalesce(EXACTFR, TOTALFR))
+  mutate(fruits = coalesce(EXACTFR, TOTAL_INFL))
 
 
 # we are really only interested in the columns: fruits, species, and keeping plot, plot.1, subplot, and park for merging purposes
@@ -125,9 +201,9 @@ sem_updated_focals <- rbind(sem_focals_dat_no_nav_or_collom, nav_and_collom_only
 
 #working with wir_focals_dat
 colnames(wir_focals_dat)
-  # for fruits we have TOTALFR = the initial total fruit counts we took at the parks
+  # for fruits we have TOTAL_INFL = the initial total fruit counts we took at the parks
   # EXACTFR = The EPIDEN fruit counts
-  # TOPFR, SIDEFR is the top and side counts for NAVSQU and COLLOM
+  # TOP_INFL_FR, SIDE_INFL_FR is the top and side counts for NAVSQU and COLLOM
 
 # attempting to create a function to do everything that I did above
 
@@ -141,13 +217,13 @@ update_fruit_counts <- function(data, species_to_update, calculate_new_fruit_cou
   
   # 3. create "fruits" column using coalesce to combine fruit counts
   species_data <- species_data %>% 
-    mutate(fruits = coalesce(new_fruit_count, EXACTFR, TOTALFR))
+    mutate(fruits = coalesce(new_fruit_count, EXACTFR, TOTAL_INFL))
   
   # 4. remove NAv and COLLOM from og dataset
   data_no_nav_collom <- data[!data$SPECIES %in% species_to_update, ]
   
   # 5. Coalesce "fruits" for the rest of the species 
-  data_no_nav_collom <- data_no_nav_collom %>% mutate(fruits = coalesce(EXACTFR, TOTALFR))
+  data_no_nav_collom <- data_no_nav_collom %>% mutate(fruits = coalesce(EXACTFR, TOTAL_INFL))
   
   # 6. select only relevant columns for merging/want to keep
   columns_to_keep <- c("PLOT", "SPECIES", "PLOT.1", "SUBPLOT", "fruits", "PARK")
@@ -177,16 +253,16 @@ wir_updated_focals <- update_fruit_counts(wir_focals_dat, nav_and_collom, calcul
 ### RF -- need to also changing FR1 to TOTAL FR
 #############
   # new name = old name
-rf_focals_dat <- rf_focals_dat %>% rename(TOTALFR = FR1)
+rf_focals_dat <- rf_focals_dat %>% rename(TOTAL_INFL = FR1)
 rf_updated_focals <- update_fruit_counts(rf_focals_dat, nav_and_collom, calculate_new_fruit_count)
 
 ```
 
 #BR changing fruit counts
 ```{r}
-# modifying TOTAL.FR to TOTALFR for fxn to work
+# modifying TOTAL.FR to TOTAL_INFL for fxn to work
   # new name = old name
-br_focals_dat <- br_focals_dat %>% rename(TOTALFR = TOTAL.FR)
+br_focals_dat <- br_focals_dat %>% rename(TOTAL_INFL = TOTAL.FR)
 br_updated_focals <- update_fruit_counts(br_focals_dat, nav_and_collom, calculate_new_fruit_count)
 
 ```
@@ -313,25 +389,12 @@ neighborhood_focal_rf <- clean_neighborhood_focal(neighborhood_focal_rf)
 
 # ADDING ALONES
 ## zeroing out in weeds, seed counts, species
+  # need to think more about this one too, bc there are EXACTFR values that are the total fruit counts 
 ```{r}
 all_alones <- read.csv("fitness alone focals(ALL alone focals).csv")
-all_alones<- all_alones %>% rename(TOTALFR = fr1)
-
-
-# doing the fruit count
-calculate_new_fruit_count <- function(row, data){
-  # calculating the average side and tops in the function?
-  
-  average_top <- mean(data$TOPFR, na.rm = TRUE)
-  average_side <- mean(data$SIDEFR, na.rm = TRUE)
-  
-  if(!is.na(data[row, 'TOPFR']) & !is.na(data[row, 'SIDEFR'])){
-    return(data[row, 'TOPFR'] + ((data[row, "TOTALFR"] - 1) *data[row, 'SIDEFR']))
-  }
-  else{
-    return(average_top + ((data[row, 'TOTALFR'] - 1) * average_side))
-  }
-}
+# will generally either want fr1 or EXACTFR as TOTALFR, use coalesce to check if there's an EXACTFR value, if not use the fr1 as TOTALFR
+all_alones <- all_alones %>% 
+  mutate(TOTALFR = coalesce(EXACTFR, fr1))
 
 # only want to apply the function to NAV and COLLOM 
 nav_and_collom <- c("NAVSQU", "COLLOM")
@@ -353,6 +416,7 @@ all_alones <- all_alones %>% select(PARK, SPECIES, PLOT, fruits)
 # rename SPECIES to focal and fruits to seeds
 all_alones <- all_alones %>%
     rename(focal = SPECIES, seeds = fruits)
+
 
 ```
 
