@@ -8,9 +8,10 @@ date: "2024-08-17"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# loading in data
+# loading in data (both focal and neighborhood data)
 ```{r}
 library(tidyverse)
+library(stringr)
 
 wir_focals_dat <- read.csv("focals/wir fitness(WIR diverse focals).csv")
 wir_neighborhoods_data <- read.csv("neighborhoods/wir fitness(WIR neighborhoods).csv")
@@ -52,7 +53,7 @@ sem_neighbors_filtered <- sem_neighborhoods_data[sem_neighborhoods_data$`focal c
 
 ```
 
-# modifying column names so that names are more accurate
+# modifying column names so that names are more accurate, getting rid of rows that have the note: GONE
 ```{r}
 
 # TOPFR is number of fruits on the top infloresence
@@ -67,15 +68,24 @@ sem_focals_dat <- sem_focals_dat %>%
 sem_focals_dat <- sem_focals_dat %>% 
     rename("SIDE_INFL_FR" = "SIDEFR")
 
-# EXACTFR is epiden fruit counts, but for places like the rf alones it looks like EXACTFR is the sum of fr1, fr2, fr3 etc 
+#TODO figure out what to do with EXACTFR (EXACTFR is epiden fruit counts, but for places like the rf alones it looks like EXACTFR is the sum of fr1, fr2, fr3 etc)
 
-na_rows <- sem_focals_dat[is.na(sem_focals_dat$TOTAL_INFL), ]
-print(na_rows)
+# TODO: Think about what to do about the rows with special notes like BT, BT no fruits?, couldn't find, BT Fruit gone (leaning towards just dropping these)
+#sem_focals_dat[sem_focals_dat$NOTES != "", ]
+# would mean dropping 18 rows out of 203 rows 
+# what are all the unique notes, how many are there 
+  # how many different variations of BT do we have 
+  # "BT", "BT no fruits?", "BT Fruit gone", "BT BAGGED \"11\"?"
+  # "GONE", "couldn't find", I think these ones can definitely be dropped 
+
+# these are looking at the notes/the exact instances of the notes
+# unique(sem_focals_dat$NOTES)
+# BT_sem <- sem_focals_dat[str_detect(sem_focals_dat$NOTES, "BT"), ]
+# GONE_sem <- sem_focals_dat[str_detect(sem_focals_dat$NOTES, "GONE|couldn't find"), ]
 
 
-
-
-
+# I want to drop all of these, dropping the BT ~10 of these and dropping the GONE/couldn't find rows, ~10 of these
+sem_focals_dat <- sem_focals_dat[!str_detect(sem_focals_dat$NOTES, "GONE|couldn't find|BT"), ]
 ```
 
 
@@ -104,7 +114,7 @@ calculate_new_fruit_count <- function(row, data){
               "SIDE_INFL_FR:", data[row, "SIDE_INFL_FR"]))
 
 
-  # if there is not total_infl count, I figured we should just skip it bc it's likely gone/missing (can also try and account for these above, ie getting rid of any of the rows that have a note like BT or gone)
+  # TODO: need to think of another way to deal with these, there's at least one instance where there is no total infl, but there is a side and/or top infl count
   if (is.na(data[row, "TOTAL_INFL"])) {
     print(paste("Row", row, "- Skipping because TOTAL_INFL is NA"))
     return(NA)
@@ -157,10 +167,6 @@ nav_and_collom <- c("NAVSQU", "COLLOM")
 # SEM fixing fruit counts 
 ```{r}
 
-# TODO: Think about what to do about the rows with special notes like BT, BT no fruits?, couldn't find, BT Fruit gone (leaning towards just dropping these)
-#sem_focals_dat[sem_focals_dat$NOTES != "", ]
-# would mean dropping 18 rows out of 203 rows 
-
 
 
 # filtering dataframe for just nav and collom
@@ -192,6 +198,16 @@ sem_focals_dat_no_nav_or_collom <- sem_focals_dat_no_nav_or_collom %>% select(PL
 
 # now merging the nav_and_collom_only_sem with sem_focals_dat_no_nav_or_collom to get the full dataset!!
 sem_updated_focals <- rbind(sem_focals_dat_no_nav_or_collom, nav_and_collom_only_sem)
+
+
+# still have NA values here in the fruits column, there's quite a few just from looking
+# Show rows with NA in the 'fruits' column
+rows_with_na_fruits <- sem_updated_focals[is.na(sem_updated_focals$fruits), ]
+print(rows_with_na_fruits)
+# basically all of the NAs are EPIDEN, of 28 na fruit values, there's two collom, 1 navsqu, and 1 gilcap 
+# TODO: rethinking how to go about getting the epiden fruit values, would an average of the fruit counts we do have be oversimplifying it too much?
+
+
 ```
 
 
