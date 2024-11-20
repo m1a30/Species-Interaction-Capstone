@@ -235,6 +235,7 @@ print(rows_with_na_fruits)
 
 sem_epidens <- sem_updated_focals[sem_updated_focals$SPECIES == "EPIDEN" , ]
   # we have the fruit counts of 8 EPIDEN, out of 32
+mean_fruits_sem_epiden <- mean(sem_epidens$fruits, na.rm = TRUE)
 
 # TODO: for now, just getting rid of all NAs
 sem_updated_focals <- na.omit(sem_updated_focals)
