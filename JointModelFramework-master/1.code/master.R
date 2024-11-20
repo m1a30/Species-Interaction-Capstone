@@ -28,7 +28,7 @@ set.seed(54)
 
 
 #sem data with alones (with neighbors all zero-ed out)
-df <- read.csv("../../Parks data cleaning/sem_neighbor_focal_all_11_10.csv")
+df <- read.csv("../../Parks data cleaning/sem_final_data.csv")
 
 # br data
 #df <- read.csv("../../Parks data cleaning/br_final_data.csv")
@@ -120,32 +120,32 @@ library(qgraph)
 ### trying out a visualization  ##
 all.sp <- rep("lightblue", nrow(mean_interactions)) # Example: all nodes are lightblue
 
-# Define the plotting for interaction means
+# plotting for competition 
 qgraph(
   mean_interactions,  # use the mean_interactions matrix
   layout = 'circle', 
-  negCol = rgb(red = 0, green = 0, blue = 0, alpha = 0),  # Facilitation = transparent
-  posCol = 'orange',  # Competition = orange
+  posCol = rgb(red = 0, green = 0, blue = 0, alpha = 0),  # Facilitation = transparent
+  negCol = 'orange',  # Competition = orange
   color = all.sp,  # Node colors
   labels = rownames(mean_interactions),  # Use row names of the matrix for labels
   fade = TRUE,
   directed = TRUE,
-  title = 'A', 
-  title.cex = 5
+  title = 'Competition', 
+  title.cex = 1.5
 )
 
-# Define the plotting for facilitation only
+# plotting for facilitation 
 qgraph(
   mean_interactions,  # use the mean_interactions matrix
   layout = 'circle', 
-  negCol = 'royalblue4',  # Facilitation = blue
-  posCol = rgb(red = 0, green = 0, blue = 0, alpha = 0),  # Competition = transparent
+  posCol = 'royalblue4',  # Facilitation = blue
+  negCol = rgb(red = 0, green = 0, blue = 0, alpha = 0),  # Competition = transparent
   color = all.sp,  # Node colors
   labels = rownames(mean_interactions),  # Use row names of the matrix for labels
   fade = TRUE,
   directed = TRUE,
-  title = 'B', 
-  title.cex = 5
+  title = 'Facilitation', 
+  title.cex = 1.4
 )
 #######
 
