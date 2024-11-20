@@ -39,10 +39,10 @@ fix_col_names <- function(data){
   return (data)
 }
 
-wir_neighborhoods_data <- fix_col_names(wir_neighborhoods_data)
+#wir_neighborhoods_data <- fix_col_names(wir_neighborhoods_data)
 sem_neighborhoods_data <- fix_col_names(sem_neighborhoods_data)
-rf_neighborhoods_data <- fix_col_names(rf_neighborhoods_data)
-br_neighborhoods_data <- fix_col_names(br_neighborhoods_data)
+#rf_neighborhoods_data <- fix_col_names(rf_neighborhoods_data)
+#br_neighborhoods_data <- fix_col_names(br_neighborhoods_data)
 
 # filtering the neighborhoods so that we keep only the ones that have focal collects 
   # to be merged with the focal data
@@ -70,7 +70,6 @@ sem_focals_dat <- sem_focals_dat %>%
 sem_focals_dat <- sem_focals_dat %>% 
     rename("SIDE_INFL_FR" = "SIDEFR")
 
-#TODO figure out what to do with EXACTFR (EXACTFR is epiden fruit counts, but for places like the rf alones it looks like EXACTFR is the sum of fr1, fr2, fr3 etc)
 
 # TODO: Think about what to do about the rows with special notes like BT, BT no fruits?, couldn't find, BT Fruit gone (leaning towards just dropping these)
 #sem_focals_dat[sem_focals_dat$NOTES != "", ]
@@ -100,14 +99,28 @@ sem_focals_dat <- sem_focals_dat[!str_detect(sem_focals_dat$NOTES, "GONE|couldn'
   (changing from (TOTAL_INFL - 1) to data[row, "TOTAL_INFL"], so if TOTAL_INFL is 0, the equation will still work ) 
 ```{r}
 # doing the fruit count
-  # TODO: need a statement to deal with if TOTAL_INFL is NA 
-    # returning some sort of average for Totalfruit too?
-    # would i need a statement to separately deal with each thing that's missing 
 calculate_new_fruit_count <- function(row, data){
   # calculating the average side and tops in the function
+    #TODO: this doesn't differentiate between nav and collomia, it's just taking the 
+        # averages of the entire column (need to make sure it's doing these separately)
   
-  average_top <- mean(data$TOP_INFL_FR, na.rm = TRUE)
-  average_side <- mean(data$SIDE_INFL_FR, na.rm = TRUE)
+  # identify species for the row
+  species <- data[row, "SPECIES"]
+  
+  # filter data for current species
+  species_data <- data[data$SPECIES == species, ]
+  
+  
+  average_top <- mean(species_data$TOP_INFL_FR, na.rm = TRUE)
+  average_side <- mean(species_data$SIDE_INFL_FR, na.rm = TRUE)
+  
+  
+  # making sure the averages are correct for each species
+  print(paste("Processing row:", row, 
+              "| Species:", species,
+              "| Average TOP_INFL_FR:", round(average_top, 2), 
+              "| Average SIDE_INFL_FR:", round(average_side, 2)))
+  
 
   # Error checking for the specific row
   print(paste("Processing row:", row, 
@@ -164,18 +177,29 @@ calculate_new_fruit_count <- function(row, data){
 nav_and_collom <- c("NAVSQU", "COLLOM")
 
 
+# double checking averages, the function says top: 17.75, side: 2.12
+# nav_sem <-  sem_focals_dat[sem_focals_dat$SPECIES =="NAVSQU", ]
+# nav_sem_side_mean <- mean(nav_sem$TOP_INFL_FR, na.rm = TRUE)
+# nav_sem_top_mean <- mean(nav_sem$SIDE_INFL_FR, na.rm = TRUE)
+
+collom_sem <-  sem_focals_dat[sem_focals_dat$SPECIES =="COLLOM", ]
+collom_sem_side_mean <- mean(collom_sem$TOP_INFL_FR, na.rm = TRUE)
+collom_sem_top_mean <- mean(collom_sem$SIDE_INFL_FR, na.rm = TRUE)
+
 ```
 
 # SEM fixing fruit counts 
 ```{r}
 
-
-
 # filtering dataframe for just nav and collom
 nav_and_collom_only_sem <-  sem_focals_dat[sem_focals_dat$SPECIES %in% nav_and_collom, ]
 
+
 # applying function to the filtered nav/collom dataset and creating a column called 'new_fruit_count'
-nav_and_collom_only_sem$new_fruit_count <- sapply(1:nrow(nav_and_collom_only_sem), function(row) calculate_new_fruit_count(row, nav_and_collom_only_sem))
+nav_and_collom_only_sem$new_fruit_count <- sapply(
+  1:nrow(nav_and_collom_only_sem),
+  function(row) calculate_new_fruit_count(row, nav_and_collom_only_sem)
+  )
 
 
 # JUST FOR NAV AND COLLOM, merging our new values created from the above sapply in the "new_fruit_count", using coalesce to see if there's new values in new_fruit_count, if not, taking from TOTAL_INFL column 
@@ -218,51 +242,51 @@ sem_updated_focals <- na.omit(sem_updated_focals)
 
 
 
-# WIR changing fruit count
+# WIR changing fruit count, focusing on just SEM right now 11/19
 ```{r}
 
 #working with wir_focals_dat
-colnames(wir_focals_dat)
-  # for fruits we have TOTAL_INFL = the initial total fruit counts we took at the parks
-  # EXACTFR = The EPIDEN fruit counts
-  # TOP_INFL_FR, SIDE_INFL_FR is the top and side counts for NAVSQU and COLLOM
-
-# attempting to create a function to do everything that I did above
-
-update_fruit_counts <- function(data, species_to_update, calculate_new_fruit_count){
-  
-  # 1. filtering for NAV and COLLOM
-  species_data <- data[data$SPECIES %in% species_to_update, ]
-  
-  # 2. Apply function to create "new_fruit_count" column
-  species_data$new_fruit_count <- sapply(1:nrow(species_data), function(row) calculate_new_fruit_count(row, species_data))
-  
-  # 3. create "fruits" column using coalesce to combine fruit counts
-  species_data <- species_data %>% 
-    mutate(fruits = coalesce(new_fruit_count, EXACTFR, TOTAL_INFL))
-  
-  # 4. remove NAv and COLLOM from og dataset
-  data_no_nav_collom <- data[!data$SPECIES %in% species_to_update, ]
-  
-  # 5. Coalesce "fruits" for the rest of the species 
-  data_no_nav_collom <- data_no_nav_collom %>% mutate(fruits = coalesce(EXACTFR, TOTAL_INFL))
-  
-  # 6. select only relevant columns for merging/want to keep
-  columns_to_keep <- c("PLOT", "SPECIES", "PLOT.1", "SUBPLOT", "fruits", "PARK")
-  species_data <- species_data %>%  select(all_of(columns_to_keep))
-  data_no_nav_collom <- data_no_nav_collom %>% select(all_of(columns_to_keep))
-  
-  # 7. LAST STEP: combining updated data
-  updated_data <- rbind(data_no_nav_collom, species_data)
-  
-  return(updated_data)
-  
-}
-
-
-# function on wir data! 
-wir_updated_focals <- update_fruit_counts(wir_focals_dat, nav_and_collom, calculate_new_fruit_count)
-
+# colnames(wir_focals_dat)
+#   # for fruits we have TOTAL_INFL = the initial total fruit counts we took at the parks
+#   # EXACTFR = The EPIDEN fruit counts
+#   # TOP_INFL_FR, SIDE_INFL_FR is the top and side counts for NAVSQU and COLLOM
+# 
+# # attempting to create a function to do everything that I did above
+# 
+# update_fruit_counts <- function(data, species_to_update, calculate_new_fruit_count){
+#   
+#   # 1. filtering for NAV and COLLOM
+#   species_data <- data[data$SPECIES %in% species_to_update, ]
+#   
+#   # 2. Apply function to create "new_fruit_count" column
+#   species_data$new_fruit_count <- sapply(1:nrow(species_data), function(row) calculate_new_fruit_count(row, species_data))
+#   
+#   # 3. create "fruits" column using coalesce to combine fruit counts
+#   species_data <- species_data %>% 
+#     mutate(fruits = coalesce(new_fruit_count, EXACTFR, TOTAL_INFL))
+#   
+#   # 4. remove NAv and COLLOM from og dataset
+#   data_no_nav_collom <- data[!data$SPECIES %in% species_to_update, ]
+#   
+#   # 5. Coalesce "fruits" for the rest of the species 
+#   data_no_nav_collom <- data_no_nav_collom %>% mutate(fruits = coalesce(EXACTFR, TOTAL_INFL))
+#   
+#   # 6. select only relevant columns for merging/want to keep
+#   columns_to_keep <- c("PLOT", "SPECIES", "PLOT.1", "SUBPLOT", "fruits", "PARK")
+#   species_data <- species_data %>%  select(all_of(columns_to_keep))
+#   data_no_nav_collom <- data_no_nav_collom %>% select(all_of(columns_to_keep))
+#   
+#   # 7. LAST STEP: combining updated data
+#   updated_data <- rbind(data_no_nav_collom, species_data)
+#   
+#   return(updated_data)
+#   
+# }
+# 
+# 
+# # function on wir data! 
+# wir_updated_focals <- update_fruit_counts(wir_focals_dat, nav_and_collom, calculate_new_fruit_count)
+# 
 
 
 ```
@@ -275,8 +299,8 @@ wir_updated_focals <- update_fruit_counts(wir_focals_dat, nav_and_collom, calcul
 ### RF -- need to also changing FR1 to TOTAL FR
 #############
   # new name = old name
-rf_focals_dat <- rf_focals_dat %>% rename(TOTAL_INFL = FR1)
-rf_updated_focals <- update_fruit_counts(rf_focals_dat, nav_and_collom, calculate_new_fruit_count)
+# rf_focals_dat <- rf_focals_dat %>% rename(TOTAL_INFL = FR1)
+# rf_updated_focals <- update_fruit_counts(rf_focals_dat, nav_and_collom, calculate_new_fruit_count)
 
 ```
 
@@ -284,8 +308,8 @@ rf_updated_focals <- update_fruit_counts(rf_focals_dat, nav_and_collom, calculat
 ```{r}
 # modifying TOTAL.FR to TOTAL_INFL for fxn to work
   # new name = old name
-br_focals_dat <- br_focals_dat %>% rename(TOTAL_INFL = TOTAL.FR)
-br_updated_focals <- update_fruit_counts(br_focals_dat, nav_and_collom, calculate_new_fruit_count)
+# br_focals_dat <- br_focals_dat %>% rename(TOTAL_INFL = TOTAL.FR)
+# br_updated_focals <- update_fruit_counts(br_focals_dat, nav_and_collom, calculate_new_fruit_count)
 
 ```
 
@@ -304,18 +328,10 @@ merge_neighbor_fitness <- function(focal_data, neighborhood_data){
   
 }
 
-neighborhood_focal_br <- merge_neighbor_fitness(br_updated_focals, br_neighborhoods_data)
-neighborhood_focal_rf <- merge_neighbor_fitness(rf_updated_focals, rf_neighborhoods_data)
-neighborhood_focal_wir <- merge_neighbor_fitness(wir_updated_focals, wir_neighborhoods_data)
+#neighborhood_focal_br <- merge_neighbor_fitness(br_updated_focals, br_neighborhoods_data)
+#neighborhood_focal_rf <- merge_neighbor_fitness(rf_updated_focals, rf_neighborhoods_data)
+#neighborhood_focal_wir <- merge_neighbor_fitness(wir_updated_focals, wir_neighborhoods_data)
 neighborhood_focal_sem <- merge_neighbor_fitness(sem_updated_focals, sem_neighbors_filtered)
-
-
-common_cols <- intersect(colnames(sem_focals_dat), colnames(sem_neighborhoods_data))
-# print(colnames(sem_focals_dat))
-# print(colnames(sem_neighborhoods_data))
-# print(common_cols)
-  # it's sem_neighbors_filtered bc they had the 'Y' or 'N' focals collect column (the rest of the datasets don't have this so using the og neighborhood data for the rest)
-neighborhood_focal_sem <- merge(sem_neighbors_filtered, sem_updated_focals, by = c(common_cols))
 
 ```
 
@@ -400,13 +416,13 @@ clean_neighborhood_focal <- function(data){
 }
 
 
-neighborhood_focal_br <- clean_neighborhood_focal(neighborhood_focal_br)
+#neighborhood_focal_br <- clean_neighborhood_focal(neighborhood_focal_br)
 # for some reason focal collect is still in br, hard-coding for now
-neighborhood_focal_br <- neighborhood_focal_br %>%
-    select(-`focal collect?`)
+#neighborhood_focal_br <- neighborhood_focal_br %>%
+    #select(-`focal collect?`)
 
-neighborhood_focal_wir <- clean_neighborhood_focal(neighborhood_focal_wir)
-neighborhood_focal_rf <- clean_neighborhood_focal(neighborhood_focal_rf)
+#neighborhood_focal_wir <- clean_neighborhood_focal(neighborhood_focal_wir)
+#neighborhood_focal_rf <- clean_neighborhood_focal(neighborhood_focal_rf)
 ```
 
 
