@@ -182,9 +182,9 @@ nav_and_collom <- c("NAVSQU", "COLLOM")
 # nav_sem_side_mean <- mean(nav_sem$TOP_INFL_FR, na.rm = TRUE)
 # nav_sem_top_mean <- mean(nav_sem$SIDE_INFL_FR, na.rm = TRUE)
 
-collom_sem <-  sem_focals_dat[sem_focals_dat$SPECIES =="COLLOM", ]
-collom_sem_side_mean <- mean(collom_sem$TOP_INFL_FR, na.rm = TRUE)
-collom_sem_top_mean <- mean(collom_sem$SIDE_INFL_FR, na.rm = TRUE)
+# collom_sem <-  sem_focals_dat[sem_focals_dat$SPECIES =="COLLOM", ]
+# collom_sem_side_mean <- mean(collom_sem$TOP_INFL_FR, na.rm = TRUE)
+# collom_sem_top_mean <- mean(collom_sem$SIDE_INFL_FR, na.rm = TRUE)
 
 ```
 
