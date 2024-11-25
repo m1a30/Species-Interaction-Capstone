@@ -28,7 +28,8 @@ set.seed(54)
 
 
 #sem data with alones (with neighbors all zero-ed out)
-df <- read.csv("../../Parks data cleaning/sem_final_data.csv")
+df <- read.csv("../../Parks data cleaning/data_cleaned/sem_dat.csv")
+# maybe clean down the data to just the columns we need 
 
 # br data
 #df <- read.csv("../../Parks data cleaning/br_final_data.csv")
