@@ -18,6 +18,7 @@ library(rethinking)
 #install.packages("reshape2")
 library(reshape2)
 library(tidyverse)
+library(ggplot2)
 
 # load required functions
 source('data_prep.R')
@@ -27,27 +28,48 @@ source('simul_data.R')
 set.seed(54)
 
 
-#sem data with alones (with neighbors all zero-ed out)
-df <- read.csv("../../Parks data cleaning/data_cleaned/sem_dat.csv")
-# maybe clean down the data to just the columns we need 
+#sem data
+df <- read.csv("../../Parks data cleaning/data_cleaned/br_dat.csv")
 
-# br data
-#df <- read.csv("../../Parks data cleaning/br_final_data.csv")
+# seeing how different the output is when getting rid of large seed counts
+# Identify the 10 largest values in the seeds column
+top_10_max <- df %>%
+  arrange(desc(seeds)) %>%
+  slice_head(n = 10)
 
-# rf data
-#df <- read.csv("../../Parks data cleaning/rf_final_data.csv")
+# Filter out the rows with the 10 largest values
+df <- df %>%
+  filter(!seeds %in% top_10_max$seeds)
 
-# wir data
-#df <- read.csv("../../Parks data cleaning/wir_final_data.csv")
+ggplot(df, aes(x = seeds)) +
+  geom_histogram(binwidth = 10) +
+  ggtitle("Distribution of Seeds")
 
 #start by trying only with the focal species (add in other non-focals later once this one is working)
-df <- df %>% dplyr::select(focal, PLOT, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
-#head(df)
+df <- df %>% dplyr::select(species, plot, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
+
+# modifying data frame so it's just plot species seeds and all neighbors
+# df <- df %>%
+#   select(2:3, 14, 17:ncol(df))
+
+# keeping plot species seeds as is, then alphabetizing the neighbors
+# df<- df %>%
+#   select(1:3, sort(names(df)[-(1:3)]))
+
+# TODO: need the seeds to be ints and not doubles? I think that's what's causing the error
+df$seeds <- as.integer(df$seeds)
+
+#filling the alone neighbors that are NAs to 0s 
+df[is.na(df)] <- 0
 
 # NB: if using real data or named species, ensure they are ordered alphabetically in the dataset
 
+# 11/24 Changing df$focal to df$species to match our dataframe
 # identify focal and neighbouring species to be matched to parameter estimates
-focalID <- unique(df$focal)  # this should return the names of unique focal groups in the order
+
+focalID <- unique(df$species)  # this should return the names of unique focal groups in the order
+# TODO: extra data cleaning step, need the focals to be alphabetized 
+focalID <- sort(focalID)
 # in which they are encountered in the dataframe - must be alphabetical
 
 # 11/10: changed the -c(1:2) to -c(1:3), check df for how many non neighbor cols
@@ -57,7 +79,7 @@ neighbourID <- colnames(df[ , -c(1:3)]) # should be ordered focal first (alphabe
 # ensure neighbours are linearly independent across the whole dataset (see S1.2)
 N_all <- df[ , neighbourID]
 N_all <- apply(N_all, c(1,2), as.numeric)
-X_all <- cbind(model.matrix(~as.factor(df$focal)), N_all)
+X_all <- cbind(model.matrix(~as.factor(df$species)), N_all)
 R_all <- pracma::rref(X_all)
 Z_all <- t(R_all) %*% R_all
 indep <- sapply(seq(1, dim(Z_all)[1], 1), function(k){ 
@@ -70,7 +92,7 @@ if(!all(indep == 1)) warning('WARNING neighbours are not linearly independent')
 # Notes: 10/29: changed the nonNcols from 2 to 3 (bc we have the X: 1,2,3 etc column, focal, and seeds column)
 # prepare the data into the format required by STAN and the model code
 stan.data <- data_prep(perform = 'seeds', 
-                       focal = 'focal', 
+                       focal = 'species', 
                        nonNcols = 3, # number of columns that aren't neighbour abundances
                        df = df)
 
@@ -86,18 +108,50 @@ fit <- stan(file = 'joint_model.stan',
             data =  stan.data,               # named list of data
             chains = 3,
             cores = 3, # added so runs in parallel
-            warmup = 2000,          # number of warmup iterations per chain
-            iter = 5000,            # total number of iterations per chain
+            warmup = 1000,          # number of warmup iterations per chain
+            iter = 2000,            # total number of iterations per chain
             refresh = 100,         # show progress every 'refresh' iterations
             control = list(max_treedepth = 19,
                            adapt_delta = 0.99), 
             seed = stan.seed
 )
 
+fit_summary <- as.data.frame(summary(fit)$summary)
+high_rhat <- fit_summary[fit_summary$Rhat > 1.1, ]
+low_ess <- fit_summary[fit_summary$n_eff < 100, ]
+View(low_ess)
+View(high_rhat)
+
+bayesplot::mcmc_pairs(fit, pars = c("response[1]", "response[2]", "effect[1]", "effect[2]"))
+
+
 # check convergence
 print(summary(fit, pars=c("gamma_i","ndd_betaij","ri_betaij"))$summary)
 rstan::traceplot(fit, pars=c("gamma_i","ndd_betaij"))
 rstan::stan_rhat(fit, pars=c("gamma_i","ndd_betaij"))
+#checking for divergent transitions
+rstan::check_hmc_diagnostics(fit)
+summary(fit)
+
+
+
+# getting posterior distributions (http://mc-stan.org/bayesplot/)
+posterior <- as.matrix(fit)
+# Check parameter names in the posterior object
+str(posterior)
+
+mcmc_areas(posterior,
+           pars = c("log_lik_nddm[45]"), 
+           prob = 0.8)
+
+# Extract all log_lik_nddm values
+log_lik_nddm_values <- as.data.frame(posterior[, grep("log_lik_nddm", colnames(posterior))])
+
+# Melt the data into a long format
+log_lik_nddm_long <- tidyr::gather(log_lik_nddm_values, parameter, value)
+
+# Create a faceted density plot
+mcmc_dens(log_lik_nddm_long, facet_args = list(ncol = 5))
 
 # getting the traceplots (from Jeff's master.R code)
 print(mcmc_trace(fit, regex_pars = "ndd_betaij"))
