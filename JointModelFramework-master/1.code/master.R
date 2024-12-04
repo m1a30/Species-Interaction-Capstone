@@ -29,7 +29,7 @@ set.seed(54)
 
 
 #sem data
-df <- read.csv("../../Parks data cleaning/data_cleaned/br_dat.csv")
+df <- read.csv("../../Parks data cleaning/data_cleaned/wir_dat.csv")
 
 # seeing how different the output is when getting rid of large seed counts
 # Identify the 10 largest values in the seeds column
@@ -108,80 +108,64 @@ fit <- stan(file = 'joint_model.stan',
             data =  stan.data,               # named list of data
             chains = 3,
             cores = 3, # added so runs in parallel
-            warmup = 1000,          # number of warmup iterations per chain
-            iter = 2000,            # total number of iterations per chain
+            warmup = 2000,          # number of warmup iterations per chain
+            iter = 3000,            # total number of iterations per chain
             refresh = 100,         # show progress every 'refresh' iterations
             control = list(max_treedepth = 19,
                            adapt_delta = 0.99), 
             seed = stan.seed
 )
 
-fit_summary <- as.data.frame(summary(fit)$summary)
-high_rhat <- fit_summary[fit_summary$Rhat > 1.1, ]
-low_ess <- fit_summary[fit_summary$n_eff < 100, ]
-View(low_ess)
-View(high_rhat)
-
-bayesplot::mcmc_pairs(fit, pars = c("response[1]", "response[2]", "effect[1]", "effect[2]"))
+## code to look at where the high rhat values are
+# fit_summary <- as.data.frame(summary(fit)$summary)
+# high_rhat <- fit_summary[fit_summary$Rhat > 1.1, ]
+# low_ess <- fit_summary[fit_summary$n_eff < 100, ]
+# View(low_ess)
+# View(high_rhat)
+# was finding that response and effect were high values 
+#bayesplot::mcmc_pairs(fit, pars = c("response[1]", "response[2]", "effect[1]", "effect[2]"))
 
 
 # check convergence
 print(summary(fit, pars=c("gamma_i","ndd_betaij","ri_betaij"))$summary)
 rstan::traceplot(fit, pars=c("gamma_i","ndd_betaij"))
 rstan::stan_rhat(fit, pars=c("gamma_i","ndd_betaij"))
-#checking for divergent transitions
-rstan::check_hmc_diagnostics(fit)
-summary(fit)
 
 
-
+# figuring out how to get the posterior distributions (idk which thing to get the posteriors of) ####
 # getting posterior distributions (http://mc-stan.org/bayesplot/)
-posterior <- as.matrix(fit)
-# Check parameter names in the posterior object
-str(posterior)
+# posterior <- as.matrix(fit)
+# # Check parameter names in the posterior object
+# str(posterior)
+# # Extract all log_lik_nddm values
+# log_lik_nddm_values <- as.data.frame(posterior[, grep("log_lik_nddm", colnames(posterior))])
+# # Create a faceted density plot
+# mcmc_dens(log_lik_nddm_long, facet_args = list(ncol = 5))
 
-mcmc_areas(posterior,
-           pars = c("log_lik_nddm[45]"), 
-           prob = 0.8)
 
-# Extract all log_lik_nddm values
-log_lik_nddm_values <- as.data.frame(posterior[, grep("log_lik_nddm", colnames(posterior))])
-
-# Melt the data into a long format
-log_lik_nddm_long <- tidyr::gather(log_lik_nddm_values, parameter, value)
-
-# Create a faceted density plot
-mcmc_dens(log_lik_nddm_long, facet_args = list(ncol = 5))
-
-# getting the traceplots (from Jeff's master.R code)
-print(mcmc_trace(fit, regex_pars = "ndd_betaij"))
-print(mcmc_trace(fit, regex_pars = "ri_betaij"))
-print(mcmc_trace(fit, regex_pars = "gamma_i"))
-#dev.off()
 
 # Get the full posteriors 
 joint.post.draws <- extract.samples(fit)
 
-# Get interaction estimates
-#--------------------------
+## ---  Get interaction estimates ###
 inter_mat <- aperm(joint.post.draws$ndd_betaij, c(2, 3, 1))
 rownames(inter_mat) <- focalID
 colnames(inter_mat) <- neighbourID
 
-# getting the mean of all the posterios 
+## getting the mean of all the posteriors 
 mean_interactions <- apply(inter_mat, c(1, 2), mean)
 library(qgraph)
 
 ### trying out a visualization  ##
-all.sp <- rep("lightblue", nrow(mean_interactions)) # Example: all nodes are lightblue
+all_sp <- rep("lightblue", nrow(mean_interactions)) # Example: all nodes are lightblue
 
 # plotting for competition 
-qgraph(
+competition_plot <- qgraph(
   mean_interactions,  # use the mean_interactions matrix
   layout = 'circle', 
   posCol = rgb(red = 0, green = 0, blue = 0, alpha = 0),  # Facilitation = transparent
   negCol = 'orange',  # Competition = orange
-  color = all.sp,  # Node colors
+  color = all_sp,  # Node colors
   labels = rownames(mean_interactions),  # Use row names of the matrix for labels
   fade = TRUE,
   directed = TRUE,
@@ -190,59 +174,18 @@ qgraph(
 )
 
 # plotting for facilitation 
-qgraph(
+facilitation_plot <- qgraph(
   mean_interactions,  # use the mean_interactions matrix
   layout = 'circle', 
   posCol = 'royalblue4',  # Facilitation = blue
   negCol = rgb(red = 0, green = 0, blue = 0, alpha = 0),  # Competition = transparent
-  color = all.sp,  # Node colors
+  color = all_sp,  # Node colors
   labels = rownames(mean_interactions),  # Use row names of the matrix for labels
   fade = TRUE,
   directed = TRUE,
   title = 'Facilitation', 
   title.cex = 1.4
 )
-####### PCC #####
-
-
-
-
-
-# instead of using the rethinking package
-#n.draws <- dim(as.matrix(fit))
-# alternative to rethinking for pulling out posterior estimates
-
-# Get the full posteriors ----
-# ! rethinking function not working for me ----
-# joint.post.draws <- extract.samples(fit)  
-# n.draws <- dim(as.matrix(fit))[1]
-# rand.draws <- sample(1:n.draws, 1000)
-# # Get 
-# get_variables(fit)
-# 
-# joint.post.draws <- fit %>%
-#   spread_draws(beta_ij[sp]) %>%
-#   filter(.draw %in% rand.draws)%>%
-#   mutate(param = "beta") 
-# joint.post.draws
-
-
-# Select parameters of interest
-    # lp__ is the log probability of model
-# original code:
-#param.vec <- fit@model_pars[!fit@model_pars %in% c('lp__')]
-# but since we are just interested in the 'ndd_betaij' (for now)
-param.vec <- fit@model_pars[fit@model_pars %in% c('ndd_betaij')]
-
-# Draw samples from the 80% posterior interval for `ndd_betaij`
-ndd_betaij_samples <- lapply(param.vec, function(p) {
-  apply(joint.post.draws[[p]], 2, function(x) {
-    sample(x[x > quantile(x, 0.1) & x < quantile(x, 0.9)], size = 100)
-  })
-})
-
-# seeing what the structure of ndd_betaij_samples outputs
-str(ndd_betaij_samples)
 
 
 # ORIGINAL CODE
@@ -271,15 +214,5 @@ str(ndd_betaij_samples)
 
 # Interactions can now be divided by the appropriate scaling (intrinsic performance, and demographic rates
 # if a population dynamics model is used) in order to return per capita interaction strengths. 
-
-# general code on some ways to look at outputs
-
-# inter_sample_1 <- inter_mat[, , 1]  # Extract the first sample
-# print(inter_sample_1)               # View the first interaction matrix
-# 
-# mean_inter_mat <- apply(inter_mat, c(1, 2), mean)
-# print(mean_inter_mat)
-# heatmap(mean_inter_mat, Rowv = NA, Colv = NA, scale = "none", 
-#         main = "Mean Interaction Matrix", xlab = "Neighbors", ylab = "Focals")
 
 
