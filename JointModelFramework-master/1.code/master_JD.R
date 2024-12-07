@@ -12,6 +12,8 @@ library(rethinking)
 #install.packages("reshape2")
 library(reshape2)
 
+theme_set(theme_minimal())
+
 # load required functions
 source('data_prep.R')
 # instead of the simul_data, want our cleaned dataframe
