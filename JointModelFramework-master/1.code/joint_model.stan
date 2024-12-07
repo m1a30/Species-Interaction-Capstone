@@ -79,8 +79,8 @@ model {
   beta_ij ~ normal(0,1);    // prior for interactions inferred by the NDDM
   weight ~ normal(0, 10); // constrained by parameter definition to be positive
   // no prior needed for response or effect as we can use the default prior for the unit_vector
-  response ~ normal(0, .1); // tried adding a prior
-  effect ~ normal(0, .1);  // tried adding a prior
+  // response ~ normal(0, .1); // tried adding a prior
+  // effect ~ normal(0, .1);  // tried adding a prior
   
   // maximising the likelihood for the joint model 
   for(n in 1:N) {
