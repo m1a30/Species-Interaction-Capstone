@@ -166,4 +166,5 @@ summary(aov_result)
 TukeyHSD(aov_result)
 
 
-# correlation coeffs across parks? #######
+# correlation coeffs across parks?  #######
+# looking at posteriors and comparing those across parks? there's so many of them

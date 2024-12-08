@@ -54,7 +54,7 @@ top_20_max_sem <- sem_df %>%
 sem_df <- sem_df %>%
   filter(!seeds %in% top_20_max_sem$seeds)
 
-# RF removing the max 10 vaues of seed counts ######
+# RF removing the max 20 vaues of seed counts ######
 top_20_max_rf <- rf_df %>%
   arrange(desc(seeds)) %>%
   slice_head(n = 20)
@@ -267,7 +267,7 @@ message(paste0('Proportion of inferrable interactions = ', sum(stan.data_wir$Q)/
 
 stan.seed <- 1234
 
-# Run the model! 
+# BR model fitting ####
 
 fit_br <- stan(file = 'joint_model.stan', 
             data =  stan.data_br,               # named list of data
@@ -286,13 +286,13 @@ br_fit <- rstan::extract(fit_br)
 
 
 ## Code to look at where the high rhat values are ####
-# fit_summary <- as.data.frame(summary(fit)$summary)
+fit_summary <- as.data.frame(summary(fit)$summary)
 # high_rhat <- fit_summary[fit_summary$Rhat > 1.1, ]
 # low_ess <- fit_summary[fit_summary$n_eff < 100, ]
 # View(low_ess)
 # View(high_rhat)
 # was finding that response and effect were high values 
-#bayesplot::mcmc_pairs(fit, pars = c("response[1]", "response[2]", "effect[1]", "effect[2]"))
+bayesplot::mcmc_pairs(fit_sem, pars = c("response[1]", "response[2]", "effect[1]", "effect[2]"))
 
 
 # check convergence
@@ -313,6 +313,7 @@ colnames(inter_mat_br) <- neighbourID_br
 
 ## getting the mean of all the posteriors 
 mean_interactions_br <- apply(inter_mat_br, c(1, 2), mean)
+print(dim(mean_interactions)) 
 mean_interactions_br_df <- as.data.frame(mean_interactions_br)
 # keeping row names as separate column for clarity
 mean_interactions_br_df$RowNames <- rownames(mean_interactions_br)
@@ -322,17 +323,42 @@ mean_interactions_br_df <- mean_interactions_br_df[, c("RowNames", setdiff(colna
 write.csv(mean_interactions_br_df, "mean_interaction_matrix_br.csv", row.names = FALSE)
 
 
-# figuring out how to get the posterior distributions (idk which thing to get the posteriors of) ####
+# trying out saving the beta_ij values from br's fit to plug into other models as initializations #########
+# looking at parameter names
+# str(joint.post.draws_br) 
+# # Extract beta_ij samples from the first model
+# beta_ij_samples_br <- joint.post.draws_br$ndd_betaij
+# beta_ij_init_br <- apply(beta_ij_samples_br, c(2, 3), median)  # Median for each (S, T) pair
+# # need to match the sem data (52, > stan.data_sem$I) with the 64 from br$I
+# beta_ij_init_sem <- beta_ij_init_br[cbind(stan.data_sem$irow, stan.data_sem$icol)]
+# #length(beta_ij_init_sem)
+# #stan.data_br$I
+# # creating a function that can be plugged into the next models
+# init_function <- function() {
+#   list(
+#     beta_ij = beta_ij_init_sem
+#   )
+# }
+
+
+# figuring out how to get the posterior distributions (getting posteriors of ndd_betaij) ####
 # getting posterior distributions (http://mc-stan.org/bayesplot/)
-# posterior <- as.matrix(fit)
-# # Check parameter names in the posterior object
+# posterior <- as.matrix(fit_br)
+# # # Check parameter names in the posterior object
 # str(posterior)
-# # Extract all log_lik_nddm values
-# log_lik_nddm_values <- as.data.frame(posterior[, grep("log_lik_nddm", colnames(posterior))])
-# # Create a faceted density plot
-# mcmc_dens(log_lik_nddm_long, facet_args = list(ncol = 5))
+# colnames(posterior)
+# # # Extract all ndd_betaij values
+# beta_ij_values <- as.data.frame(posterior[, grep("ndd_betaij", colnames(posterior))])
+# # # Create a faceted density plot
+# summary(beta_ij_values)
+# nrow(posterior)
+# subset_beta_ij <- beta_ij_values[, 1:20]
+# mcmc_dens(subset_beta_ij, facet_args = list(ncol = 5), adjust = 2)
 
 
+
+#length(beta_ij_init_br) == stan.data_sem$I 
+#str(init_list)
 
 # SEM model fit ####
 fit_sem <- stan(file = 'joint_model.stan', 
@@ -345,6 +371,7 @@ fit_sem <- stan(file = 'joint_model.stan',
                control = list(max_treedepth = 19,
                               adapt_delta = 0.99), 
                seed = stan.seed
+               #init = init_function
                )
 
 
