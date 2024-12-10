@@ -444,23 +444,84 @@ gtsave(data = table_gt, filename = "summary_table.png")
 
 
 
+# looking at common species across ALL parks ########
+# Get species from each park (assuming row names contain species names)
+species_br <- colnames(mean_interactions_br)
+species_sem <- colnames(mean_interactions_sem)
+species_rf <- colnames(mean_interactions_rf)
+species_wir <- colnames(mean_interactions_wir)
+
+# Find common species across all parks
+common_species <- Reduce(intersect, list(species_br, species_sem, species_rf, species_wir))
+
+# View shared species
+print(common_species)
+
+# Subset common_species to include only focal species
+valid_focal_species <- intersect(common_species, rownames(mean_interactions_br))
+
+# Create interaction data frame
+interaction_data <- data.frame(
+  Species_A = rep(valid_focal_species, each = length(common_species) * 4), # Focals
+  Species_B = rep(common_species, times = length(valid_focal_species) * 4), # Neighbors
+  Park = rep(c("BR", "SEM", "RF", "WIR"), each = length(valid_focal_species) * length(common_species)),
+  Interaction = c(
+    as.vector(mean_interactions_br[valid_focal_species, common_species]),
+    as.vector(mean_interactions_sem[valid_focal_species, common_species]),
+    as.vector(mean_interactions_rf[valid_focal_species, common_species]),
+    as.vector(mean_interactions_wir[valid_focal_species, common_species])
+  )
+)
+# View the interaction data frame
+(interaction_data)
+
+
+
+
+
+# How does the strength of interspecific vs. intraspecific competition differ between each species? #####
+
+# Are there general patterns in species interactions that are the same across the different parks?#####
+
+
+# Do we see two species with roughly the same interaction coefficients across different parks/environments? ######
+
+
+
+# Something I'm just curious about #####
+# getting the interactions between daucus carota and each of the natives at WIR
+# Define the invasive species and native species
+invasive_species <- "DAUCAR"
+native_species <- c("COLLOM", "COLLIN", "NAVSQU", "GILCAP", "EPIDEN", "PLAFIG", "PLECON", "CLAPUR") # List of native species
+
+# Subset the interactions of the invasive species with native species
+interactions_invasive <- t(mean_interactions_wir)[invasive_species, native_species, drop = FALSE]
+
+# View the isolated interactions
+print(interactions_invasive)
+
+
+
 # looking at 2 specific species  ######
 species_A_B <- data.frame(
   park = c("BR", "SEM", "RF", "WIR"),
   interaction = c(
-    mean_interactions_br["PLAFIG", "PLECON"],
-    mean_interactions_sem["PLAFIG", "PLECON"],
-    mean_interactions_rf["PLAFIG", "PLECON"],
-    mean_interactions_wir["PLAFIG", "PLECON"]
+    mean_interactions_br["GILCAP", "LACTUCA"],
+    mean_interactions_sem["GILCAP", "LACTUCA"],
+    mean_interactions_rf["GILCAP", "LACTUCA"],
+    mean_interactions_wir["GILCAP", "LACTUCA"]
   )
 )
+
+print(common_species)
 
 # Plot interaction coefficients across parks
 ggplot(species_A_B, aes(x = park, y = interaction)) +
   geom_bar(stat = "identity", fill = "skyblue") +
-  ggtitle("Interaction Between PLAFIG and PLECON Across Parks") +
+  ggtitle("Interaction Between GILCAP and LACTUCA Across Parks") +
   ylab("Interaction Coefficient") +
   xlab("Park")
+
 
 # running ANOVA #######
 # ANOVA test
