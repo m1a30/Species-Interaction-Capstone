@@ -40,12 +40,12 @@ mean_interactions_br_matrix <- square_matrix
 # Define species groups dynamically
 foundation <- c('CLAPUR', 'COLLOM', 'COLLIN', "GILCAP", "NAVSQU", 'EPIDEN', "PLAFIG", "PLECON")  # Replace with foundation species at Blanton Ridge
 all_species <- rownames(mean_interactions_br_matrix)  # All species in the dataset
-invasives <- setdiff(all_species, foundation)         # Invasives = all species except foundation
+invasives_br <- setdiff(all_species, foundation)         # Invasives = all species except foundation
 
 # Set up colors for nodes
 names(all.sp) <- all_species
 
-all.sp[invasives] <- 'forestgreen'  # Color for invasive species
+all.sp[invasives_br] <- 'forestgreen'  # Color for invasive species
 all.sp[foundation] <- 'purple'    # Color for foundation species
 
 # Plot competition and facilitation separately #####
@@ -53,11 +53,11 @@ all.sp[foundation] <- 'purple'    # Color for foundation species
 qgraph(mean_interactions_br_matrix,
        layout = 'circle',
        posCol = rgb(red = 0, green = 0, blue = 0, alpha = 0),  # Facilitation = transparent
-       negCol = 'red3',                                     # Competition = red
+       negCol = 'orange',                                     # Competition = red
        color = all.sp,
-       labels = rownames(mean_interactions_br_matrix),
+       labels = rownames(mean_interactions_br_matrix), label.color = "white", label.cex = 1.25,
        fade = TRUE, directed = TRUE, curve = 2,
-       title = 'Competition at Blanton Ridge', title.cex = 2)
+       title = 'Competition at Blanton Ridge', title.cex = 1)
 
 # Facilitation only
 qgraph(mean_interactions_br_matrix,
@@ -65,7 +65,7 @@ qgraph(mean_interactions_br_matrix,
        posCol = 'royalblue4',                                 # Facilitation = blue
        negCol = rgb(red = 0, green = 0, blue = 0, alpha = 0), # Competition = transparent
        color = all.sp,
-       labels = rownames(mean_interactions_br_matrix),
+       labels = rownames(mean_interactions_br_matrix),  label.color = "white", label.cex = 1.25,
        fade = TRUE, directed = TRUE,
        title = 'Facilitation at Blanton Ridge', title.cex = 1)
 
@@ -78,8 +78,8 @@ qgraph(mean_interactions_br_matrix,
        negCol = 'orange',           # Competition = orange
        color = all.sp,              # Node colors
        labels = rownames(mean_interactions_br_matrix),  # Node labels
-       fade = TRUE, curve = 2,
-       title = 'Competition and Facilitation at Blanton Ridge', title.cex = 2)
+       fade = TRUE, curve = 2,   label.color = "white", label.cex = 1.25,
+       title = 'Competition and Facilitation at Blanton Ridge', title.cex = 1)
 
 
 # just looking at our focals from larger plot #####
@@ -94,12 +94,12 @@ native_interactions <- mean_interactions_br_matrix[foundation, foundation]
 # Plot foundation-to-foundation interactions
 qgraph(native_interactions,
        layout = 'circle',
-       negCol = 'red',  # competition = red
+       negCol = 'orange',  # competition = orange
        posCol = 'forestgreen',      # facilitation = green
        color = 'purple',       # All nodes are foundations
        labels = foundation,
-       fade = TRUE, directed = TRUE,
-       title = 'Interactions Among Natives at BR', title.cex = 2)
+       fade = TRUE, directed = TRUE,   label.color = "white", label.cex = 1.25,
+       title = 'Interactions Among Natives at BR', title.cex = 1)
 
 
 
@@ -143,7 +143,7 @@ invasives_sem <- setdiff(all_species_sem, natives)         # Invasives = all spe
 # Set up colors for nodes
 names(all.sp) <- all_species_sem
 
-all.sp[invasives] <- 'forestgreen'  # Color for invasive species
+all.sp[invasives_sem] <- 'forestgreen'  # Color for invasive species
 all.sp[natives_sem] <- 'purple'    # Color for natives
 
 # Plot competition and facilitation separately #####
@@ -154,8 +154,8 @@ qgraph(mean_interactions_sem_matrix,
        negCol = 'orange',                                     # Competition = orange
        color = all.sp,
        labels = rownames(mean_interactions_sem_matrix),
-       fade = TRUE, directed = TRUE, curveAll = 0.5,
-       title = 'Competition at South Eugene Meadows', title.cex = 2)
+       fade = TRUE, directed = TRUE, curveAll = 0.5, label.color = "white", label.cex = 1.25,
+       title = 'Competition at South Eugene Meadows', title.cex = 1)
 
 # Facilitation only
 qgraph(mean_interactions_sem_matrix,
@@ -164,7 +164,7 @@ qgraph(mean_interactions_sem_matrix,
        negCol = rgb(red = 0, green = 0, blue = 0, alpha = 0), # Competition = transparent
        color = all.sp,
        labels = rownames(mean_interactions_sem_matrix),
-       fade = TRUE, directed = TRUE, curveAll = 0.5,
+       fade = TRUE, directed = TRUE, curveAll = 0.5, label.color = "white", label.cex = 1.25,
        title = 'Facilitation at South Eugene Meadows', title.cex = 1)
 
 
@@ -192,12 +192,12 @@ native_interactions_sem <- mean_interactions_sem_matrix[natives, natives]
 # Plot foundation-to-foundation interactions
 qgraph(native_interactions_sem,
        layout = 'circle',
-       negCol = 'red',  # competition = red
+       negCol = 'orange',  # competition = orange
        posCol = 'forestgreen',      # facilitation = green
        color = 'purple',       # All nodes are foundations
        labels = foundation,
-       fade = TRUE, directed = TRUE,
-       title = 'Interactions Among Natives at SEM', title.cex = 2)
+       fade = TRUE, directed = TRUE, label.color = "white", label.cex = 1.25,
+       title = 'Interactions Among Natives at SEM', title.cex = 1)
 
 
 
@@ -241,7 +241,7 @@ invasives_rf <- setdiff(all_species_rf, natives)         # Invasives = all speci
 # Set up colors for nodes
 names(all.sp) <- all_species_rf
 
-all.sp[invasives] <- 'forestgreen'  # Color for invasive species
+all.sp[invasives_rf] <- 'forestgreen'  # Color for invasive species
 all.sp[natives_rf] <- 'purple'    # Color for natives
 
 # Plot competition and facilitation separately #####
@@ -252,8 +252,8 @@ qgraph(mean_interactions_rf_matrix,
        negCol = 'orange',                                     # Competition = orange
        color = all.sp,
        labels = rownames(mean_interactions_rf_matrix),
-       fade = TRUE, directed = TRUE, curveAll = 0.5,
-       title = 'Competition at South Eugene Meadows', title.cex = 2)
+       fade = TRUE, directed = TRUE, curveAll = 0.5, label.color = "white", label.cex = 1.25,
+       title = 'Competition at the Riverfront', title.cex = 1)
 
 # Facilitation only
 qgraph(mean_interactions_rf_matrix,
@@ -262,8 +262,8 @@ qgraph(mean_interactions_rf_matrix,
        negCol = rgb(red = 0, green = 0, blue = 0, alpha = 0), # Competition = transparent
        color = all.sp,
        labels = rownames(mean_interactions_rf_matrix),
-       fade = TRUE, directed = TRUE, curveAll = 0.5,
-       title = 'Facilitation at South Eugene Meadows', title.cex = 1)
+       fade = TRUE, directed = TRUE, curveAll = 0.5, label.color = "white", label.cex = 1.25,
+       title = 'Facilitation at the Riverfront', title.cex = 1)
 
 
 
@@ -275,7 +275,7 @@ qgraph(mean_interactions_rf_matrix,
        color = all.sp,              # Node colors
        labels = rownames(mean_interactions_rf_matrix),  # Node labels
        fade = TRUE, curveAll = 0.5,
-       title = 'Competition and Facilitation at South Eugene Meadows', title.cex = 2)
+       title = 'Competition and Facilitation at the Riverfront', title.cex = 2)
 
 
 # just looking at our focals from larger plot #####
@@ -290,12 +290,12 @@ native_interactions_rf <- mean_interactions_rf_matrix[natives, natives]
 # Plot foundation-to-foundation interactions
 qgraph(native_interactions_rf,
        layout = 'circle',
-       negCol = 'red',  # competition = red
+       negCol = 'orange',  # competition = orange
        posCol = 'forestgreen',      # facilitation = green
        color = 'purple',       # All nodes are foundations
        labels = foundation,
-       fade = TRUE, directed = TRUE,
-       title = 'Interactions Among Natives at rf', title.cex = 2)
+       fade = TRUE, directed = TRUE,label.color = "white", label.cex = 1.25,
+       title = 'Interactions Among Natives at the Riverfront', title.cex = 1)
 
 
 
@@ -340,7 +340,7 @@ invasives_wir <- setdiff(all_species_wir, natives)         # Invasives = all spe
 # Set up colors for nodes
 names(all.sp) <- all_species_wir
 
-all.sp[invasives] <- 'forestgreen'  # Color for invasive species
+all.sp[invasives_wir] <- 'forestgreen'  # Color for invasive species
 all.sp[natives_wir] <- 'purple'    # Color for natives
 
 # Plot competition and facilitation separately #####
@@ -351,18 +351,18 @@ qgraph(mean_interactions_wir_matrix,
        negCol = 'orange',                                     # Competition = orange
        color = all.sp,
        labels = rownames(mean_interactions_wir_matrix),
-       fade = TRUE, directed = TRUE, curveAll = 0.5,
-       title = 'Competition at South Eugene Meadows', title.cex = 1)
+       fade = TRUE, directed = TRUE, curveAll = 0.5, label.color = "white", label.cex = 1.25,
+       title = 'Competition at WIR', title.cex = 1)
 
 # Facilitation only
 qgraph(mean_interactions_wir_matrix,
        layout = 'circle',
        posCol = 'royalblue4',                                 # Facilitation = blue
        negCol = rgb(red = 0, green = 0, blue = 0, alpha = 0), # Competition = transparent
-       color = all.sp,
+       color = all.sp, label.color = "white", label.cex = 1.25,
        labels = rownames(mean_interactions_wir_matrix),
        fade = TRUE, directed = TRUE, curveAll = 0.5,
-       title = 'Facilitation at South Eugene Meadows', title.cex = 1)
+       title = 'Facilitation at WIR', title.cex = 1)
 
 
 
@@ -373,8 +373,8 @@ qgraph(mean_interactions_wir_matrix,
        negCol = 'orange',           # Competition = orange
        color = all.sp,              # Node colors
        labels = rownames(mean_interactions_wir_matrix),  # Node labels
-       fade = TRUE, curveAll = 0.5,
-       title = 'Competition and Facilitation at South Eugene Meadows', title.cex = 1)
+       fade = TRUE, curveAll = 0.5, label.color = "white", label.cex = 1.25,
+       title = 'Competition and Facilitation at WIR', title.cex = 1)
 
 
 # just looking at our focals from larger plot #####
@@ -389,12 +389,12 @@ native_interactions_wir <- mean_interactions_wir_matrix[natives, natives]
 # Plot foundation-to-foundation interactions
 qgraph(native_interactions_wir,
        layout = 'circle',
-       negCol = 'red',  # competition = red
+       negCol = 'orange',  # competition = orange
        posCol = 'forestgreen',      # facilitation = green
        color = 'purple',       # All nodes are foundations
        labels = foundation,
-       fade = TRUE, directed = TRUE,
-       title = 'Interactions Among Natives at wir', title.cex = 1)
+       fade = TRUE, directed = TRUE, label.color = "white", label.cex = 1.25,
+       title = 'Interactions Among Natives at WIR', title.cex = 1)
 
 
 
@@ -402,34 +402,47 @@ qgraph(native_interactions_wir,
 library(pheatmap)
 
 # Assuming you have matrices for 4 sites
-pheatmap(mean_interactions_br_df, main = "Blanton Ridge")
-pheatmap(mean_interactions_sem_df, main = "South Eugene Meadows")
-pheatmap(mean_interactions_wir_df, main = "Wild Iris Ridge")
-pheatmap(mean_interactions_rf_df, main = "Riverfront")
+# keeping the color scheme consistent, blue = facil = positive, red/orange = comp = negative
+custom_colors <- colorRampPalette(c("red", "beige", "blue"))(50)
+pheatmap(t(mean_interactions_br_df), main = "Blanton Ridge", cluster_rows = FALSE, cluster_cols = FALSE, color = custom_colors)
+pheatmap(t(mean_interactions_sem_df), main = "South Eugene Meadows", cluster_rows = FALSE, cluster_cols = FALSE, color = custom_colors)
+pheatmap(t(mean_interactions_wir_df), main = "Wild Iris Ridge", cluster_rows = FALSE, cluster_cols = FALSE, color = custom_colors)
+pheatmap(t(mean_interactions_rf_df), main = "Riverfront", cluster_rows = FALSE, cluster_cols = FALSE, color = custom_colors)
 
-# Combined heatmap, not working ########
-combined_matrix <- rbind(
-  as.vector(mean_interactions_br_df),
-  as.vector(mean_interactions_sem_df),
-  as.vector(mean_interactions_wir_df),
-  as.vector(mean_interactions_rf_df)
-)
-rownames(combined_matrix) <- c("BR", "SEM", "WIR", "RF")
-pheatmap(combined_matrix, cluster_rows = TRUE, cluster_cols = TRUE)
-
-# combined qgraph, not working#####
-layout <- qgraph::averageLayout(mean_interactions_br_df, mean_interactions_sem_df, mean_interactions_wir_df, mean_interactions_rf_df)
-qgraph(mean_interactions_br_df, layout = layout, title = "Site 1")
-qgraph(mean_interactions_sem_df, layout = layout, title = "Site 2")
-qgraph(mean_interactions_wir_df, layout = layout, title = "Site 3")
-qgraph(mean_interactions_rf_df, layout = layout, title = "Site 4")
 
 # Summary Statistics #####
 prop_positive_BR <- sum(mean_interactions_br_df > 0) / length(mean_interactions_br_df)
 prop_negative_BR <- sum(mean_interactions_br_df < 0) / length(mean_interactions_br_df)
 
+prop_positive_RF <- sum(mean_interactions_rf_df > 0) / length(mean_interactions_rf_df)
+prop_negative_RF <- sum(mean_interactions_rf_df < 0) / length(mean_interactions_rf_df)
+
 prop_positive_WIR <- sum(mean_interactions_wir_df > 0) / length(mean_interactions_wir_df)
 prop_negative_WIR <- sum(mean_interactions_wir_df < 0) / length(mean_interactions_wir_df)
+
+prop_positive_SEM <- sum(mean_interactions_sem_df > 0) / length(mean_interactions_sem_df)
+prop_negative_SEM <- sum(mean_interactions_sem_df < 0) / length(mean_interactions_sem_df)
+
+
+summary_table <- data.frame(
+  Category = c("BR", "RF", "WIR", "SEM"),
+  Positive_Proportion = c(prop_positive_BR, prop_positive_RF, prop_positive_WIR, prop_positive_SEM),
+  Negative_Proportion = c(prop_negative_BR, prop_negative_RF, prop_negative_WIR, prop_negative_SEM)
+)
+write.csv(summary_table, "summary_table.csv", row.names = FALSE)
+
+# trying out gt package to create a table png
+library(gt)
+
+# Create the table
+table_gt <- summary_table %>%
+  gt() %>%
+  tab_header(title = "Proportion Summary")
+
+# Save as an image
+gtsave(data = table_gt, filename = "summary_table.png")
+
+
 
 # looking at 2 specific species  ######
 species_A_B <- data.frame(
