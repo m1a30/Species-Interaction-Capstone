@@ -12,6 +12,116 @@ mean_interactions_br_df <- mean_interactions_br_df[, -which(colnames(mean_intera
 
 all_species_br <- unique(c(rownames(mean_interactions_br_df), colnames(mean_interactions_br_df)))
 
+# based on Bimler figure code!! #######
+# Load your data
+mean_interactions_br_df <- read.csv("mean_interaction_matrix_br.csv")
+
+# Convert to matrix
+rownames(mean_interactions_br_df) <- mean_interactions_br_df$RowNames
+mean_interactions_br_df <- mean_interactions_br_df[, -which(colnames(mean_interactions_br_df) == "RowNames")]
+mean_interactions_br_matrix <- as.matrix(mean_interactions_br_df)
+
+# Ensure matrix is correctly oriented
+mean_interactions_br_matrix <- t(mean_interactions_br_matrix)  # Arrows point towards focal species
+all_species <- unique(c(rownames(mean_interactions_br_df), colnames(mean_interactions_br_df)))
+
+# Create a square matrix
+square_matrix <- matrix(0, nrow = length(all_species), ncol = length(all_species))
+rownames(square_matrix) <- all_species
+colnames(square_matrix) <- all_species
+
+# Fill the square matrix with values from mean_interactions_br_matrix
+for (i in seq_len(nrow(mean_interactions_br_df))) {
+  for (j in seq_len(ncol(mean_interactions_br_df))) {
+    square_matrix[rownames(mean_interactions_br_df)[i], colnames(mean_interactions_br_df)[j]] <- mean_interactions_br_df[i, j]
+  }
+}
+
+mean_interactions_br_matrix <- square_matrix
+
+
+
+# Define species groups dynamically
+foundation <- c('CLAPUR', 'COLLOM', 'COLLIN', "GILCAP", "NAVSQU", 'EPIDEN', "PLAFIG", "PLECON")  # Replace with foundation species at Blanton Ridge
+all_species <- rownames(mean_interactions_br_matrix)  # All species in the dataset
+invasives <- setdiff(all_species, foundation)         # Invasives = all species except foundation
+
+# Set up colors for nodes
+all.sp <- rep('white', length(all_species))
+names(all.sp) <- all_species
+
+all.sp[invasives] <- 'firebrick3'  # Color for invasive species
+all.sp[foundation] <- 'purple'    # Color for foundation species
+
+# Plot competition and facilitation separately
+library(qgraph)
+
+png('Blanton_Ridge_Interactions_No_Keystone.png', width = 1875, height = 3750, units = 'px')
+par(mfrow = c(2, 1))
+
+# Competition only
+qgraph(mean_interactions_br_matrix,
+       layout = 'circle',
+       negCol = rgb(red = 0, green = 0, blue = 0, alpha = 0),  # Facilitation = transparent
+       posCol = 'orange',                                     # Competition = orange
+       color = all.sp,
+       labels = rownames(mean_interactions_br_matrix),
+       fade = TRUE, directed = TRUE,
+       title = 'A: Competition at Blanton Ridge', title.cex = 2)
+
+# Facilitation only
+qgraph(mean_interactions_br_matrix,
+       layout = 'circle',
+       negCol = 'royalblue4',                                 # Facilitation = blue
+       posCol = rgb(red = 0, green = 0, blue = 0, alpha = 0), # Competition = transparent
+       color = all.sp,
+       labels = rownames(mean_interactions_br_matrix),
+       fade = TRUE, directed = TRUE,
+       title = 'B: Facilitation at Blanton Ridge', title.cex = 1)
+
+
+
+# both facil and comp together
+qgraph(mean_interactions_br_matrix,
+       layout = 'circle',           # Circular layout
+       negCol = 'royalblue4',       # Facilitation = blue
+       posCol = 'orange',           # Competition = orange
+       color = all.sp,              # Node colors
+       labels = rownames(mean_interactions_br_matrix),  # Node labels
+       fade = TRUE, directed = TRUE, # Directed edges
+       title = 'Competition and Facilitation at Blanton Ridge', title.cex = 2)
+
+
+# just looking at our focals from larger plot #####
+# Define foundation species
+foundation <- c('CLAPUR', 'COLLOM', 'COLLIN', "GILCAP", "NAVSQU", 'EPIDEN', "PLAFIG", "PLECON")
+
+
+# Extract the submatrix: interactions toward foundation species
+# Extract submatrix for foundation-to-foundation interactions
+foundation_interactions <- mean_interactions_br_matrix[foundation, foundation]
+
+# Plot foundation-to-foundation interactions
+qgraph(foundation_interactions,
+       layout = 'circle',
+       negCol = 'red',  # Facilitation = blue
+       posCol = 'forestgreen',      # Competition = orange
+       color = 'purple',       # All nodes are foundations
+       labels = foundation,
+       fade = TRUE, directed = TRUE,
+       title = 'Interactions Among Foundation Species', title.cex = 2)
+
+
+effects_on_foundation <- mean_interactions_br_matrix[, foundation]
+qgraph(effects_on_foundation,
+       layout = 'circle',
+       negCol = 'royalblue4',  # Facilitation = blue
+       posCol = 'orange',      # Competition = orange
+       color = all.sp,
+       labels = rownames(effects_on_foundation),
+       fade = TRUE, directed = TRUE,
+       title = 'Effects on Foundation Species', title.cex = 2)
+
 
 # plotting competition and facilitation on same graph 
 competition_plot_br <- qgraph(

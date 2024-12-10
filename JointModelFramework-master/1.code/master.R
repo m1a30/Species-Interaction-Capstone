@@ -13,11 +13,13 @@ options(mc.cores = parallel::detectCores())
 library(tidybayes)
 library(bayesplot)
 library(devtools)
+
 #devtools::install_github("rmcelreath/rethinking")
 library(rethinking)
 library(reshape2)
 library(tidyverse)
 library(ggplot2)
+library(dplyr)
 
 # load required functions
 source('data_prep.R')
@@ -47,29 +49,29 @@ wir_df <- read.csv("../../Parks data cleaning/data_cleaned/wir_dat.csv")
 
 # seeing how different the output is when getting rid of large seed counts
 #SEM Identify the 20 largest values in the seeds column  #######
-top_20_max_sem <- sem_df %>%
-  arrange(desc(seeds)) %>%
-  slice_head(n = 20)
-#Filter out the rows with the 10 largest values
-sem_df <- sem_df %>%
-  filter(!seeds %in% top_20_max_sem$seeds)
-
-# RF removing the max 20 vaues of seed counts ######
-top_20_max_rf <- rf_df %>%
-  arrange(desc(seeds)) %>%
-  slice_head(n = 20)
-#Filter out the rows with the 10 largest values
-rf_df <- rf_df %>%
-  filter(!seeds %in% top_20_max_rf$seeds)
-
-
-# WIR removing the max 10 vaues of seed counts ######
-top_10_max_wir <- wir_df %>%
-  arrange(desc(seeds)) %>%
-  slice_head(n = 10)
-#Filter out the rows with the 10 largest values
-wir_df <- wir_df %>%
-  filter(!seeds %in% top_10_max_wir$seeds)
+# top_20_max_sem <- sem_df %>%
+#   arrange(desc(seeds)) %>%
+#   slice_head(n = 20)
+# #Filter out the rows with the 10 largest values
+# sem_df <- sem_df %>%
+#   filter(!seeds %in% top_20_max_sem$seeds)
+# 
+# # RF removing the max 20 vaues of seed counts ######
+# top_20_max_rf <- rf_df %>%
+#   arrange(desc(seeds)) %>%
+#   slice_head(n = 20)
+# #Filter out the rows with the 10 largest values
+# rf_df <- rf_df %>%
+#   filter(!seeds %in% top_20_max_rf$seeds)
+# 
+# 
+# # WIR removing the max 10 vaues of seed counts ######
+# top_10_max_wir <- wir_df %>%
+#   arrange(desc(seeds)) %>%
+#   slice_head(n = 10)
+# #Filter out the rows with the 10 largest values
+# wir_df <- wir_df %>%
+#   filter(!seeds %in% top_10_max_wir$seeds)
 
 ## Visualizing what the seed distributions are and Calculating variance of seed counts #####
 br_plot <- ggplot(br_df, aes(x = seeds)) +
@@ -109,29 +111,94 @@ rf_seed_variance <- var(rf_df$seeds)
 rf_seed_summary <- summary(rf_df$seeds)
 
 # Running the model with only focal species ####
-df_br <- br_df %>% dplyr::select(species, plot, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
-df_sem <- sem_df %>% dplyr::select(species, plot, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
-df_rf <- rf_df %>% dplyr::select(species, plot, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
-df_wir <- wir_df %>% dplyr::select(species, plot, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
+# df_br <- br_df %>% dplyr::select(species, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
+# df_sem <- sem_df %>% dplyr::select(species, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
+# df_rf <- rf_df %>% dplyr::select(species, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
+# df_wir <- wir_df %>% dplyr::select(species, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
 
 # Code for if running ALL neighbors, subsetting down to the columns we want ####
 # If we run the data with all of the weeds, then consider getting rid of the gallium (the 1-10 scale) and grass species, not many of them? ####
 # modifying data frame so it's just plot species seeds and all neighbors
-# df <- df %>%
-#   select(2:3, 14, 17:ncol(df))
-# keeping plot species seeds as is, then alphabetizing the neighbors
-# df<- df %>%
-#   select(1:3, sort(names(df)[-(1:3)]))
+# # br data cleaning #######
 
-# Data Cleaning: need the seeds to be ints and not doubles? I think that's what's causing the error ####
+df_br <- br_df %>%
+  select(3, 14, 17:ncol(br_df))
+# #keeping plot species seeds as is, then alphabetizing the neighbors
+df_br <- df_br %>%
+  select(1:10, sort(names(df_br)[-(1:3)]))
+
+sorted_cols_br <- names(df_br)[3:10] %>% sort()
+
+df_br <- df_br %>%
+  select(1:2, all_of(sorted_cols_br), everything())
+
+# # dropping gallium and others that are mostly 0, to up the number to inferrable interactions
+drops_br <- c("GALIUM", "SCARLET.PIMPERNEL", "H","J", "D", "G", "I")
+df_br <- df_br[ , !(names(df_br) %in% drops_br)]
+
+
+# SEM data cleaning  ####
+df_sem <- sem_df %>%
+  select(3, 14, 17:ncol(sem_df))
+# #keeping plot species seeds as is, then alphabetizing the neighbors
+df_sem <- df_sem %>%
+  select(1:10, sort(names(df_sem)[-(1:3)]))
+
+sorted_cols_sem <- names(df_sem)[3:10] %>% sort()
+
+df_sem <- df_sem %>%
+  select(1:2, all_of(sorted_cols_sem), everything())
+# # dropping gallium
+drops_sem <- c("GALIUM")
+df_sem <- df_sem[ , !(names(df_sem) %in% drops_sem)]
+
+# # cleaning weeds for rf ######
+
+df_rf <- rf_df %>%
+  select(3, 14, 16:ncol(rf_df))
+# #keeping plot species seeds as is, then alphabetizing the neighbors
+df_rf <- df_rf %>%
+  select(1:10, sort(names(df_rf)[-(1:3)]))
+
+sorted_cols_rf <- names(df_rf)[3:10] %>% sort()
+
+df_rf <- df_rf %>%
+  select(1:2, all_of(sorted_cols_rf), everything())
+
+# decided not to drop these columns as it didn't converge well when I did
+# drops_rf <- c("A", "B", "C")
+# df_rf <- df_rf[ , !(names(df_rf) %in% drops_rf)]
+
+# # cleaning for wir
+df_wir <- wir_df %>%
+  select(3, 14, 16:ncol(wir_df))
+# #keeping plot species seeds as is, then alphabetizing the neighbors
+df_wir <- df_wir %>%
+  select(1:10, sort(names(df_wir)[-(1:3)]))
+
+sorted_cols <- names(df_wir)[3:10] %>% sort()
+
+df_wir <- df_wir %>%
+  select(1:2, all_of(sorted_cols), everything())
+
+# decided not to drop these columns, this also didn't converge well without these
+# drops_wir <- c("A", "B", "C", "D", "E", "F", "G")
+# df_wir <- df_wir[ , !(names(df_wir) %in% drops_wir)]
+
+
+# Data Cleaning: need the seeds to be ints and not doubles, I think that's what's causing the error ####
 df_br$seeds <- as.integer(df_br$seeds)
 df_sem$seeds <- as.integer(df_sem$seeds)
 df_rf$seeds <- as.integer(df_rf$seeds)
 df_wir$seeds <- as.integer(df_wir$seeds)
 
 
-sum(is.na(df_sem))
+# NA check #######
+# Rows with NA values
+# rows_with_na <- df_br[apply(is.na(df_br), 1, any), ]
+# print(rows_with_na)
 
+print(highlight_na)
 #filling the alone neighbors that are NAs to 0s 
 df_br[is.na(df_br)] <- 0
 df_sem[is.na(df_sem)] <- 0
@@ -139,8 +206,19 @@ df_rf[is.na(df_rf)] <- 0
 df_wir[is.na(df_wir)] <- 0
 
 
-
+# revisiting making the dataframes alphabetical #########
 # NB: if using real data or named species, ensure they are ordered alphabetically in the dataset
+
+# rearranging row names alphabetically 
+df_br <- df_br[order(df_br$species), ]
+df_sem <- df_sem[order(df_sem$species), ]
+df_rf <- df_rf[order(df_rf$species), ]
+df_wir <- df_wir[order(df_wir$species), ]
+
+
+# rearranging column names alphabetically... don't need to do when subsetting down to just the 8 natives
+  # but it would be df <- df[order(colnames(df))], then also want to keep the plot, species, seeds in the front still
+
 # 11/24 Changing df$focal to df$species to match our dataframe
 # identify focal and neighbouring species to be matched to parameter estimates
 focalID_br <- unique(df_br$species)  # this should return the names of unique focal groups in the order
@@ -149,18 +227,11 @@ focalID_rf <- unique(df_rf$species)
 focalID_wir <- unique(df_wir$species)
 
 
-# extra data cleaning step, need the focals to be alphabetized ####
-focalID_br <- sort(focalID_br)
-focalID_sem <- sort(focalID_sem)
-focalID_rf <- sort(focalID_rf)
-focalID_wir <- sort(focalID_wir)
-# in which they are encountered in the dataframe - must be alphabetical
-
 # 11/10: changed the -c(1:2) to -c(1:3), check df for how many non neighbor cols
-neighbourID_br <- colnames(df_br[ , -c(1:3)]) # should be ordered focal first (alphabetically), then
-neighbourID_sem <- colnames(df_sem[ , -c(1:3)])
-neighbourID_rf <- colnames(df_rf[ , -c(1:3)])
-neighbourID_wir <- colnames(df_wir[ , -c(1:3)])
+neighbourID_br <- colnames(df_br[ , -c(1:2)]) # should be ordered focal first (alphabetically), then
+neighbourID_sem <- colnames(df_sem[ , -c(1:2)])
+neighbourID_rf <- colnames(df_rf[ , -c(1:2)])
+neighbourID_wir <- colnames(df_wir[ , -c(1:2)])
 # non-focals in alphabetical order
 
 # ensure neighbours are linearly independent across the whole dataset (see S1.2)
@@ -223,22 +294,22 @@ if(!all(indep_wir == 1)) warning('WARNING neighbours are not linearly independen
 # prepare the data into the format required by STAN and the model code
 stan.data_br <- data_prep(perform = 'seeds', 
                        focal = 'species', 
-                       nonNcols = 3, # number of columns that aren't neighbour abundances
+                       nonNcols = 2, # number of columns that aren't neighbour abundances
                        df = df_br)
 
 stan.data_sem <- data_prep(perform = 'seeds', 
                           focal = 'species', 
-                          nonNcols = 3, # number of columns that aren't neighbour abundances
+                          nonNcols = 2, # number of columns that aren't neighbour abundances
                           df = df_sem)
 
 stan.data_rf <- data_prep(perform = 'seeds', 
                            focal = 'species', 
-                           nonNcols = 3, # number of columns that aren't neighbour abundances
+                           nonNcols = 2, # number of columns that aren't neighbour abundances
                            df = df_rf)
 
 stan.data_wir <- data_prep(perform = 'seeds', 
                           focal = 'species', 
-                          nonNcols = 3, # number of columns that aren't neighbour abundances
+                          nonNcols = 2, # number of columns that aren't neighbour abundances
                           df = df_wir)
 
 
@@ -259,8 +330,10 @@ message(paste0('Number of neighbour groups = ', length(neighbourID_sem)))
 message(paste0('Number of neighbour groups = ', length(neighbourID_rf)))
 message(paste0('Number of neighbour groups = ', length(neighbourID_wir)))
 
-
+# for some reason blanton ridge has 0 inferrable interactions?
 message(paste0('Proportion of inferrable interactions = ', sum(stan.data_br$Q)/(stan.data_br$S*stan.data_br$`T`)))
+
+
 message(paste0('Proportion of inferrable interactions = ', sum(stan.data_sem$Q)/(stan.data_sem$S*stan.data_sem$`T`)))
 message(paste0('Proportion of inferrable interactions = ', sum(stan.data_rf$Q)/(stan.data_rf$S*stan.data_rf$`T`)))
 message(paste0('Proportion of inferrable interactions = ', sum(stan.data_wir$Q)/(stan.data_wir$S*stan.data_wir$`T`)))
@@ -282,25 +355,23 @@ fit_br <- stan(file = 'joint_model.stan',
 )
 
 # extracting the values for br bc we know that the model likes this data! #####
-br_fit <- rstan::extract(fit_br)
-
-
-## Code to look at where the high rhat values are ####
-fit_summary <- as.data.frame(summary(fit)$summary)
+# br_fit <- rstan::extract(fit_br)
+# 
+# 
+# ## Code to look at where the high rhat values are ####
+# fit_summary <- as.data.frame(summary(fit_sem)$summary)
 # high_rhat <- fit_summary[fit_summary$Rhat > 1.1, ]
-# low_ess <- fit_summary[fit_summary$n_eff < 100, ]
-# View(low_ess)
+# # low_ess <- fit_summary[fit_summary$n_eff < 100, ]
+# # View(low_ess)
 # View(high_rhat)
-# was finding that response and effect were high values 
-bayesplot::mcmc_pairs(fit_sem, pars = c("response[1]", "response[2]", "effect[1]", "effect[2]"))
+# # was finding that response and effect were high values 
+# bayesplot::mcmc_pairs(fit_sem, pars = c("response[1]", "response[2]", "effect[1]", "effect[2]"))
 
 
 # check convergence
 print(summary(fit_br, pars=c("gamma_i","ndd_betaij","ri_betaij"))$summary)
-rstan::traceplot(fit_br, pars=c("gamma_i","ndd_betaij"))
+rstan::traceplot(fit_br, pars=c("response","effect"))
 rstan::stan_rhat(fit_br)
-
-traceplot(fit_br, pars=c("effect"))
 
 
 # Get the full posteriors 
@@ -313,7 +384,6 @@ colnames(inter_mat_br) <- neighbourID_br
 
 ## getting the mean of all the posteriors 
 mean_interactions_br <- apply(inter_mat_br, c(1, 2), mean)
-print(dim(mean_interactions)) 
 mean_interactions_br_df <- as.data.frame(mean_interactions_br)
 # keeping row names as separate column for clarity
 mean_interactions_br_df$RowNames <- rownames(mean_interactions_br)
@@ -371,15 +441,13 @@ fit_sem <- stan(file = 'joint_model.stan',
                control = list(max_treedepth = 19,
                               adapt_delta = 0.99), 
                seed = stan.seed
-               #init = init_function
                )
 
 
-pairs(fit_sem, pars = c("response[1]", "effect[1]"))
 
 print(summary(fit_sem, pars=c("gamma_i","ndd_betaij","ri_betaij"))$summary)
 rstan::traceplot(fit_sem, pars=c("response","effect"))
-rstan::stan_rhat(fit_sem, pars=c("effect"))
+rstan::stan_rhat(fit_sem, pars=c("response"))
 
 
 # Get the full posteriors ###### 
@@ -416,7 +484,7 @@ fit_rf <- stan(file = 'joint_model.stan',
                seed = stan.seed
 )
 
-pairs(fit_rf, pars = c("response[1]", "effect[1]"))
+#pairs(fit_rf, pars = c("response[1]", "effect[1]"))
 
 print(summary(fit_rf, pars=c("gamma_i","ndd_betaij","ri_betaij"))$summary)
 rstan::traceplot(fit_rf, pars=c("response","effect"))
@@ -458,7 +526,7 @@ fit_wir <- stan(file = 'joint_model.stan',
 )
 
 
-pairs(fit_wir, pars = c("response[1]", "effect[1]"))
+#pairs(fit_wir, pars = c("response[1]", "effect[1]"))
 
 print(summary(fit_wir, pars=c("gamma_i","ndd_betaij","ri_betaij"))$summary)
 rstan::traceplot(fit_wir, pars=c("response","effect"))
