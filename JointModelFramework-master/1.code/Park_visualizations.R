@@ -95,7 +95,7 @@ native_interactions <- mean_interactions_br_matrix[foundation, foundation]
 qgraph(native_interactions,
        layout = 'circle',
        negCol = 'orange',  # competition = orange
-       posCol = 'forestgreen',      # facilitation = green
+       posCol = 'royalblue4',      # facilitation = green
        color = 'purple',       # All nodes are foundations
        labels = foundation,
        fade = TRUE, directed = TRUE,   label.color = "white", label.cex = 1.25,
@@ -193,7 +193,7 @@ native_interactions_sem <- mean_interactions_sem_matrix[natives, natives]
 qgraph(native_interactions_sem,
        layout = 'circle',
        negCol = 'orange',  # competition = orange
-       posCol = 'forestgreen',      # facilitation = green
+       posCol = 'royalblue4',      # facilitation = green
        color = 'purple',       # All nodes are foundations
        labels = foundation,
        fade = TRUE, directed = TRUE, label.color = "white", label.cex = 1.25,
@@ -291,7 +291,7 @@ native_interactions_rf <- mean_interactions_rf_matrix[natives, natives]
 qgraph(native_interactions_rf,
        layout = 'circle',
        negCol = 'orange',  # competition = orange
-       posCol = 'forestgreen',      # facilitation = green
+       posCol = 'royalblue4',      # facilitation = green
        color = 'purple',       # All nodes are foundations
        labels = foundation,
        fade = TRUE, directed = TRUE,label.color = "white", label.cex = 1.25,
@@ -390,7 +390,7 @@ native_interactions_wir <- mean_interactions_wir_matrix[natives, natives]
 qgraph(native_interactions_wir,
        layout = 'circle',
        negCol = 'orange',  # competition = orange
-       posCol = 'forestgreen',      # facilitation = green
+       posCol = 'royalblue4',      # facilitation = green
        color = 'purple',       # All nodes are foundations
        labels = foundation,
        fade = TRUE, directed = TRUE, label.color = "white", label.cex = 1.25,
@@ -446,16 +446,34 @@ gtsave(data = table_gt, filename = "summary_table.png")
 
 # looking at common species across ALL parks ########
 # Get species from each park (assuming row names contain species names)
-species_br <- colnames(mean_interactions_br)
-species_sem <- colnames(mean_interactions_sem)
-species_rf <- colnames(mean_interactions_rf)
-species_wir <- colnames(mean_interactions_wir)
+species_br <- colnames(mean_interactions_br_df)
+species_sem <- colnames(mean_interactions_sem_df)
+species_rf <- colnames(mean_interactions_rf_df)
+species_wir <- colnames(mean_interactions_wir_df)
 
 # Find common species across all parks
 common_species <- Reduce(intersect, list(species_br, species_sem, species_rf, species_wir))
 
 # View shared species
 print(common_species)
+
+# heatmaps using only the common species
+
+# Filter each dataframe to include only common species
+filtered_br_df <- mean_interactions_br_df[colnames(mean_interactions_br_df) %in% common_species, ]
+filtered_sem_df <- mean_interactions_sem_df[colnames(mean_interactions_sem_df) %in% common_species, ]
+filtered_wir_df <- mean_interactions_wir_df[colnames(mean_interactions_wir_df) %in% common_species, ]
+filtered_rf_df <- mean_interactions_rf_df[colnames(mean_interactions_rf_df) %in% common_species, ]
+
+
+# Generate heatmaps
+pheatmap(t(filtered_br_df), main = "Blanton Ridge (Filtered)", cluster_rows = FALSE, cluster_cols = FALSE, color = custom_colors)
+pheatmap(t(filtered_sem_df), main = "South Eugene Meadows (Filtered)", cluster_rows = FALSE, cluster_cols = FALSE, color = custom_colors)
+pheatmap(t(filtered_wir_df), main = "Wild Iris Ridge (Filtered)", cluster_rows = FALSE, cluster_cols = FALSE, color = custom_colors)
+pheatmap(t(filtered_rf_df), main = "Riverfront (Filtered)", cluster_rows = FALSE, cluster_cols = FALSE, color = custom_colors)
+
+
+
 
 # Subset common_species to include only focal species
 valid_focal_species <- intersect(common_species, rownames(mean_interactions_br))
@@ -515,6 +533,7 @@ species_A_B <- data.frame(
 
 print(common_species)
 
+
 # Plot interaction coefficients across parks
 ggplot(species_A_B, aes(x = park, y = interaction)) +
   geom_bar(stat = "identity", fill = "skyblue") +
@@ -522,6 +541,96 @@ ggplot(species_A_B, aes(x = park, y = interaction)) +
   ylab("Interaction Coefficient") +
   xlab("Park")
 
+
+#looking at common species interactions facetplot?
+common_species_interactions <- bind_rows(
+  mean_interactions_br_df %>%
+    rownames_to_column(var = "focal") %>% # Add row names as a column
+    pivot_longer(
+      cols = -focal,
+      names_to = "neighbor", # Second species in interaction
+      values_to = "value"               # Interaction strength
+    ) %>%
+    mutate(park = "BR"),                # Add park identifier
+  
+  mean_interactions_sem_df %>%
+    rownames_to_column(var = "focal") %>%
+    pivot_longer(
+      cols = -focal,
+      names_to = "neighbor",
+      values_to = "value"
+    ) %>%
+    mutate(park = "SEM"),
+  
+  mean_interactions_rf_df %>%
+    rownames_to_column(var = "focal") %>%
+    pivot_longer(
+      cols = -focal,
+      names_to = "neighbor",
+      values_to = "value"
+    ) %>%
+    mutate(park = "RF"),
+  
+  mean_interactions_wir_df %>%
+    rownames_to_column(var = "focal") %>%
+    pivot_longer(
+      cols = -focal,
+      names_to = "neighbor",
+      values_to = "value"
+    ) %>%
+    mutate(park = "WIR")
+)
+
+# Check the structure of the combined data
+print(head(common_species_interactions))
+
+
+
+common_species_interactions <- common_species_interactions %>%
+  mutate(interaction = paste(focal, neighbor, sep = " - "))
+
+common_species_interactions <- common_species_interactions %>%
+  filter(focal %in% common_species & neighbor %in% common_species)
+
+# Split data into chunks (e.g., 50 interactions per chunk)
+chunks <- common_species_interactions %>%
+  group_by(interaction) %>%
+  group_split() %>%
+  split(., ceiling(seq_along(.) / 25))  # Adjust 50 to set number of interactions per plot
+
+
+
+# Loop through chunks and create separate plots
+for (i in seq_along(chunks)) {
+  plot_data <- bind_rows(chunks[[i]])  # Combine rows in the chunk
+  
+  # Debugging: Print the data passed to the plot
+  print(plot_data %>% arrange(interaction, park))
+  
+  # Create the plot for the current chunk
+  p <- ggplot(plot_data, aes(x = park, y = value, fill = park)) +
+    geom_bar(stat = "identity", position = "dodge") +   # Bars for each park
+    facet_wrap(~ interaction, scales = "free_y") +  # Facet by abbreviated interactions
+    theme_minimal() +                                  # Clean theme
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels
+      strip.text = element_text(size = 10)              # Adjust facet label size
+    ) +
+    labs(
+      title = paste("Interaction Strength Across Parks - Chunk", i),
+      x = "Park",
+      y = "Interaction Strength",
+      fill = "Park"
+    )
+  
+  ggsave(
+    filename = paste0("facet_plot_chunk_", i, ".png"),
+    plot = p,
+    bg = "white",
+    width = 16,
+    height = 12
+  )
+}
 
 # running ANOVA #######
 # ANOVA test

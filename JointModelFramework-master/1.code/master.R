@@ -370,12 +370,50 @@ fit_br <- stan(file = 'joint_model.stan',
 
 # check convergence
 print(summary(fit_br, pars=c("gamma_i","ndd_betaij","ri_betaij"))$summary)
-rstan::traceplot(fit_br, pars=c("response","effect"))
+rstan::traceplot(fit_br, pars=c("response", "effect"))
 rstan::stan_rhat(fit_br)
 
 
 # Get the full posteriors 
 joint.post.draws_br <- extract.samples(fit_br)
+print(str(joint.post.draws_br))
+
+# Getting UNCERTAINTY #########
+
+# Reshape ndd_betaij for summarization
+ndd_betaij_long <- melt(joint.post.draws_br$ndd_betaij, varnames = c("seeds", "species", "neighbor"), value.name = "interaction")
+
+# Calculate credible intervals for each focal-neighbor pair
+credible_intervals <- ndd_betaij_long %>%
+  group_by(species, neighbor) %>%
+  summarize(
+    lower = quantile(interaction, 0.025),
+    upper = quantile(interaction, 0.975),
+    mean = mean(interaction)
+  )
+
+# Plot credible intervals
+ggplot(credible_intervals, aes(x = neighbor, y = mean, ymin = lower, ymax = upper, color = as.factor(species))) +
+  geom_point() +
+  geom_errorbar(width = 0.2) +
+  labs(title = "Mean and 95% Credible Intervals for Interactions",
+       x = "Neighbor Species", y = "Interaction Strength",
+       color = "Focal Species")
+
+
+
+
+# Convert posterior samples to matrix form for plotting
+# posterior_matrix <- as.matrix(joint.post.draws_br$ndd_betaij)  # Or beta_ij
+# str(posterior_matrix)
+# # Density overlay plot
+# mcmc_dens_overlay(posterior_matrix[, 1:5])  # Plot for the first 5 interactions
+# 
+# # Ridge plot for distributions
+# mcmc_areas(posterior_matrix[, 1:5], prob = 0.95)  # Shows 95% credible intervals
+
+
+
 
 ## ---  Get interaction estimates ###
 inter_mat_br <- aperm(joint.post.draws_br$ndd_betaij, c(2, 3, 1))
@@ -509,6 +547,88 @@ mean_interactions_rf_df$RowNames <- rownames(mean_interactions_rf)
 mean_interactions_rf_df <- mean_interactions_rf_df[, c("RowNames", setdiff(colnames(mean_interactions_rf_df), "RowNames"))]
 
 write.csv(mean_interactions_rf_df, "mean_interaction_matrix_rf.csv", row.names = FALSE)
+
+
+# uncertainty ########
+
+# Reshape ndd_betaij for summarization
+ndd_betaij_long <- melt(joint.post.draws_sem$ndd_betaij, varnames = c("seeds", "species", "neighbor"), value.name = "interaction")
+
+ndd_betaij_long_sem <- ndd_betaij_long_sem %>%
+  mutate(
+    species_name_sem = focalID_sem[species],
+    neighbor_name_sem = neighbourID_sem[neighbor]
+  )
+
+
+# Calculate credible intervals for each focal-neighbor pair
+credible_intervals_sem <- ndd_betaij_long_sem %>%
+  group_by(species_name_sem, neighbor_name_sem) %>%
+  summarize(
+    lower = quantile(interaction, 0.025),
+    upper = quantile(interaction, 0.975),
+    mean = mean(interaction)
+  )
+
+# Plot credible intervals
+ggplot(credible_intervals_sem, aes(x = neighbor_name_sem, y = mean, ymin = lower, ymax = upper, color = as.factor(species_name_sem))) +
+  geom_point() +
+  geom_errorbar(width = 0.2) +
+  labs(title = "Mean and 95% Credible Intervals for Interactions at SEM",
+       x = "Neighbor Species", y = "Interaction Strength",
+       color = "Focal Species") + 
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)  # Rotate x-axis labels vertically
+  )
+
+
+# using tidybayes #######
+
+ndd_betaij_samples_sem <- joint.post.draws_sem$ndd_betaij
+
+
+# Reshape ndd_betaij_samples into a tidy format
+ndd_betaij_tidy_sem <- melt(
+  ndd_betaij_samples_sem,
+  varnames = c("sample", "species", "neighbor"),
+  value.name = "interaction"
+)
+
+# Add species and neighbor names using focalID_br and neighbourID_br
+ndd_betaij_tidy_named_sem <- ndd_betaij_tidy_sem %>%
+  mutate(
+    species_name_sem = focalID_sem[species],
+    neighbor_name_sem = neighbourID_sem[neighbor]
+  )
+
+# Plot posterior distributions with named species and neighbors
+ggplot(ndd_betaij_tidy_named_sem, aes(x = interaction, fill = neighbor_name_sem)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~ species_name_sem, scales = "free_y") +
+  labs(
+    title = "Posterior Distributions of Species Interaction Strengths SEM",
+    x = "Interaction Strength",
+    y = "Density",
+    fill = "Neighbor"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for readability
+
+# Summarize interaction strengths by species and neighbor
+summary_stats_sem <- ndd_betaij_tidy_named_sem %>%
+  group_by(species_name_sem, neighbor_name_sem) %>%
+  summarize(
+    mean = mean(interaction),
+    lower = quantile(interaction, 0.025),
+    upper = quantile(interaction, 0.975),
+    .groups = "drop"
+  )
+
+print(summary_stats_sem)
+write.csv(summary_stats_sem, "summary_stats_sem.csv")
+
+
+
+
 
 
 # WIR model fit #########
