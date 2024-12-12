@@ -37,42 +37,6 @@ sem_df <- read.csv("../../Parks data cleaning/data_cleaned/sem_dat.csv")
 wir_df <- read.csv("../../Parks data cleaning/data_cleaned/wir_dat.csv")
 
 
-# Code for getting rid of the max seed values... ####
-
-#  thresholds
-# upper_bound <- quantile(sem_df$seeds, 0.94)  # 98th percentile
-# 
-# # Filter out outliers
-# df_sem <- sem_df %>%
-#   filter(seeds <= upper_bound)
-
-
-# seeing how different the output is when getting rid of large seed counts
-#SEM Identify the 20 largest values in the seeds column  #######
-# top_20_max_sem <- sem_df %>%
-#   arrange(desc(seeds)) %>%
-#   slice_head(n = 20)
-# #Filter out the rows with the 10 largest values
-# sem_df <- sem_df %>%
-#   filter(!seeds %in% top_20_max_sem$seeds)
-# 
-# # RF removing the max 20 vaues of seed counts ######
-# top_20_max_rf <- rf_df %>%
-#   arrange(desc(seeds)) %>%
-#   slice_head(n = 20)
-# #Filter out the rows with the 10 largest values
-# rf_df <- rf_df %>%
-#   filter(!seeds %in% top_20_max_rf$seeds)
-# 
-# 
-# # WIR removing the max 10 vaues of seed counts ######
-# top_10_max_wir <- wir_df %>%
-#   arrange(desc(seeds)) %>%
-#   slice_head(n = 10)
-# #Filter out the rows with the 10 largest values
-# wir_df <- wir_df %>%
-#   filter(!seeds %in% top_10_max_wir$seeds)
-
 ## Visualizing what the seed distributions are and Calculating variance of seed counts #####
 br_plot <- ggplot(br_df, aes(x = seeds)) +
   geom_histogram(binwidth = 10) +
@@ -671,37 +635,4 @@ mean_interactions_wir_df$RowNames <- rownames(mean_interactions_wir)
 mean_interactions_wir_df <- mean_interactions_wir_df[, c("RowNames", setdiff(colnames(mean_interactions_wir_df), "RowNames"))]
 
 write.csv(mean_interactions_wir_df, "mean_interaction_matrix_wir.csv", row.names = FALSE)
-
-
-
-
-
-
-# ORIGINAL CODE
-# Draw 1000 samples from the 80% posterior interval for each parameter of interest
-# p.samples <- list()
-# p.samples <- sapply(param.vec[param.vec %in% c('ndd_betaij')], function(p) {
-#   p.samples[[p]] <- apply(joint.post.draws[[p]], 2, function(x){
-#     sample(x[x > quantile(x, 0.1) & x < quantile(x, 0.9)], size = 100)
-#   })  # this only works for parameters which are vectors
-# })
-
-
-# ORIGINAL CODE
-# WARNING: in the STAN model for annual wildflowers, parameter 'gamma_i' lies within an exponential,
-# 'gamma_i' estimates must thus be exponentiated to return estimates of intrinsic performance
-# intrinsic.perf <- exp(p.samples$gamma_i)
-# colnames(intrinsic.perf) <- focalID
-
-
-
-# inter_mat is now a 3 dimensional array, where rows = focals, columns = neighbours and 3rd dim = samples from the posterior
-# inter_mat[ , , 1] should return a matrix consisting of one sample for every interaction 
-# apply(inter_mat, c(1, 2), mean) will return the mean estimate for every interaction (NB: this is the 
-# mean of the 80% posterior interval, so will be slightly different to the mean value returned from 
-# summary(fit), which is calculated from the full posterior distribution) 
-
-# Interactions can now be divided by the appropriate scaling (intrinsic performance, and demographic rates
-# if a population dynamics model is used) in order to return per capita interaction strengths. 
-
 

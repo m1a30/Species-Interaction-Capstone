@@ -542,7 +542,7 @@ ggplot(species_A_B, aes(x = park, y = interaction)) +
   xlab("Park")
 
 
-#looking at common species interactions facetplot?
+#looking at common species interactions facetplot ######
 common_species_interactions <- bind_rows(
   mean_interactions_br_df %>%
     rownames_to_column(var = "focal") %>% # Add row names as a column
@@ -646,9 +646,6 @@ interactions <- data.frame(
 aov_result <- aov(interaction ~ park, data = interactions)
 summary(aov_result)
 
-# Post hoc test (if significant differences are found)
-TukeyHSD(aov_result)
 
 
-# correlation coeffs across parks?  #######
-# looking at posteriors and comparing those across parks? there's so many of them
+
