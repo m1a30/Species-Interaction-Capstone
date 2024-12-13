@@ -361,7 +361,7 @@ credible_intervals_br <- ndd_betaij_long_br %>%
 BR_credible_intervals <- ggplot(credible_intervals_br, aes(x = neighbor_name_br, y = mean, ymin = lower, ymax = upper, color = as.factor(species_name_br))) +
   geom_point() +
   geom_errorbar(width = 0.2) +
-  labs(title = "Mean and 95% Credible Intervals for Interactions at SEM",
+  labs(title = "Mean and 95% Credible Intervals for Interactions at BR",
        x = "Neighbor Species", y = "Interaction Strength",
        color = "Focal Species") + 
   theme(
@@ -371,7 +371,7 @@ BR_credible_intervals <- ggplot(credible_intervals_br, aes(x = neighbor_name_br,
 # save credible intervals plot
 ggsave(path = "../../figures_tables",
        filename = paste0("BR_credible_int_plot", ".png"),
-       plot = BR_credible_interval_plot,
+       plot = BR_credible_intervals,
        width = 16,
        height = 12
 )
@@ -584,7 +584,7 @@ credible_intervals_rf <- ndd_betaij_long_rf %>%
 RF_credible_intervals <- ggplot(credible_intervals_rf, aes(x = neighbor_name_rf, y = mean, ymin = lower, ymax = upper, color = as.factor(species_name_rf))) +
   geom_point() +
   geom_errorbar(width = 0.2) +
-  labs(title = "Mean and 95% Credible Intervals for Interactions at SEM",
+  labs(title = "Mean and 95% Credible Intervals for Interactions at RF",
        x = "Neighbor Species", y = "Interaction Strength",
        color = "Focal Species") + 
   theme(
@@ -699,7 +699,7 @@ credible_intervals_wir <- ndd_betaij_long_wir %>%
 wir_credible_intervals <- ggplot(credible_intervals_wir, aes(x = neighbor_name_wir, y = mean, ymin = lower, ymax = upper, color = as.factor(species_name_wir))) +
   geom_point() +
   geom_errorbar(width = 0.2) +
-  labs(title = "Mean and 95% Credible Intervals for Interactions at SEM",
+  labs(title = "Mean and 95% Credible Intervals for Interactions at WIR",
        x = "Neighbor Species", y = "Interaction Strength",
        color = "Focal Species") + 
   theme(
