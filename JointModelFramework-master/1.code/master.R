@@ -4,17 +4,10 @@
 require(rstan)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores()) 
-#rstan_options(auto_write = TRUE)
-
-#install.packages('tidybayes')
-# getting the rethinking package to download on Jeff's laptop
-# https://www.rdocumentation.org/packages/rethinking/versions/1.59
-# https://github.com/rmcelreath/rethinking/issues/174
 library(tidybayes)
 library(bayesplot)
 library(devtools)
 
-#devtools::install_github("rmcelreath/rethinking")
 library(rethinking)
 library(reshape2)
 library(tidyverse)
@@ -74,16 +67,8 @@ rf_len <- length (rf_df$seeds)
 rf_seed_variance <- var(rf_df$seeds)
 rf_seed_summary <- summary(rf_df$seeds)
 
-# Running the model with only focal species ####
-# df_br <- br_df %>% dplyr::select(species, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
-# df_sem <- sem_df %>% dplyr::select(species, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
-# df_rf <- rf_df %>% dplyr::select(species, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
-# df_wir <- wir_df %>% dplyr::select(species, seeds, CLAPUR, COLLIN, COLLOM, EPIDEN, GILCAP, NAVSQU, PLAFIG, PLECON)
 
-# Code for if running ALL neighbors, subsetting down to the columns we want ####
-# If we run the data with all of the weeds, then consider getting rid of the gallium (the 1-10 scale) and grass species, not many of them? ####
-# modifying data frame so it's just plot species seeds and all neighbors
-# # br data cleaning #######
+# Data cleaning to get columns we need #####
 
 df_br <- br_df %>%
   select(3, 14, 17:ncol(br_df))
@@ -116,7 +101,7 @@ df_sem <- df_sem %>%
 drops_sem <- c("GALIUM")
 df_sem <- df_sem[ , !(names(df_sem) %in% drops_sem)]
 
-# # cleaning weeds for rf ######
+# RF data cleaning ######
 
 df_rf <- rf_df %>%
   select(3, 14, 16:ncol(rf_df))
@@ -150,19 +135,13 @@ df_wir <- df_wir %>%
 # df_wir <- df_wir[ , !(names(df_wir) %in% drops_wir)]
 
 
-# Data Cleaning: need the seeds to be ints and not doubles, I think that's what's causing the error ####
+# Data Cleaning: need the seeds to be ints and not doubles ####
 df_br$seeds <- as.integer(df_br$seeds)
 df_sem$seeds <- as.integer(df_sem$seeds)
 df_rf$seeds <- as.integer(df_rf$seeds)
 df_wir$seeds <- as.integer(df_wir$seeds)
 
 
-# NA check #######
-# Rows with NA values
-# rows_with_na <- df_br[apply(is.na(df_br), 1, any), ]
-# print(rows_with_na)
-
-print(highlight_na)
 #filling the alone neighbors that are NAs to 0s 
 df_br[is.na(df_br)] <- 0
 df_sem[is.na(df_sem)] <- 0
@@ -170,7 +149,7 @@ df_rf[is.na(df_rf)] <- 0
 df_wir[is.na(df_wir)] <- 0
 
 
-# revisiting making the dataframes alphabetical #########
+# Making the dataframes alphabetical by both row and species #########
 # NB: if using real data or named species, ensure they are ordered alphabetically in the dataset
 
 # rearranging row names alphabetically 
@@ -318,68 +297,31 @@ fit_br <- stan(file = 'joint_model.stan',
             seed = stan.seed
 )
 
-# extracting the values for br bc we know that the model likes this data! #####
-# br_fit <- rstan::extract(fit_br)
-# 
-# 
-# ## Code to look at where the high rhat values are ####
-# fit_summary <- as.data.frame(summary(fit_sem)$summary)
-# high_rhat <- fit_summary[fit_summary$Rhat > 1.1, ]
-# # low_ess <- fit_summary[fit_summary$n_eff < 100, ]
-# # View(low_ess)
-# View(high_rhat)
-# # was finding that response and effect were high values 
-# bayesplot::mcmc_pairs(fit_sem, pars = c("response[1]", "response[2]", "effect[1]", "effect[2]"))
-
 
 # check convergence
 print(summary(fit_br, pars=c("gamma_i","ndd_betaij","ri_betaij"))$summary)
-rstan::traceplot(fit_br, pars=c("response", "effect"))
-rstan::stan_rhat(fit_br)
+
+# save traceplot
+ggsave(path = "../../figures_tables",
+  filename = paste0("BR_traceplot_resp_eff", ".png"),
+  plot = rstan::traceplot(fit_br, pars=c("response", "effect")),
+  width = 16,
+  height = 12
+)
+#save rhat plot
+ggsave(path = "../../figures_tables",
+         filename = paste0("BR_rhat_plot", ".png"),
+       plot = rstan::stan_rhat(fit_br),
+       width = 16,
+       height = 12
+)
 
 
-# Get the full posteriors 
+# BR posteriors  ####
 joint.post.draws_br <- extract.samples(fit_br)
 print(str(joint.post.draws_br))
 
-# Getting UNCERTAINTY #########
-
-# Reshape ndd_betaij for summarization
-ndd_betaij_long <- melt(joint.post.draws_br$ndd_betaij, varnames = c("seeds", "species", "neighbor"), value.name = "interaction")
-
-# Calculate credible intervals for each focal-neighbor pair
-credible_intervals <- ndd_betaij_long %>%
-  group_by(species, neighbor) %>%
-  summarize(
-    lower = quantile(interaction, 0.025),
-    upper = quantile(interaction, 0.975),
-    mean = mean(interaction)
-  )
-
-# Plot credible intervals
-ggplot(credible_intervals, aes(x = neighbor, y = mean, ymin = lower, ymax = upper, color = as.factor(species))) +
-  geom_point() +
-  geom_errorbar(width = 0.2) +
-  labs(title = "Mean and 95% Credible Intervals for Interactions",
-       x = "Neighbor Species", y = "Interaction Strength",
-       color = "Focal Species")
-
-
-
-
-# Convert posterior samples to matrix form for plotting
-# posterior_matrix <- as.matrix(joint.post.draws_br$ndd_betaij)  # Or beta_ij
-# str(posterior_matrix)
-# # Density overlay plot
-# mcmc_dens_overlay(posterior_matrix[, 1:5])  # Plot for the first 5 interactions
-# 
-# # Ridge plot for distributions
-# mcmc_areas(posterior_matrix[, 1:5], prob = 0.95)  # Shows 95% credible intervals
-
-
-
-
-## ---  Get interaction estimates ###
+## BR interaction estimates ###
 inter_mat_br <- aperm(joint.post.draws_br$ndd_betaij, c(2, 3, 1))
 rownames(inter_mat_br) <- focalID_br
 colnames(inter_mat_br) <- neighbourID_br
@@ -394,43 +336,61 @@ mean_interactions_br_df <- mean_interactions_br_df[, c("RowNames", setdiff(colna
 
 write.csv(mean_interactions_br_df, "mean_interaction_matrix_br.csv", row.names = FALSE)
 
+# Uncertainty for BR #########
+# Reshape ndd_betaij for summarization
+ndd_betaij_long_br <- melt(joint.post.draws_br$ndd_betaij, varnames = c("seeds", "species", "neighbor"), value.name = "interaction")
 
-# trying out saving the beta_ij values from br's fit to plug into other models as initializations #########
-# looking at parameter names
-# str(joint.post.draws_br) 
-# # Extract beta_ij samples from the first model
-# beta_ij_samples_br <- joint.post.draws_br$ndd_betaij
-# beta_ij_init_br <- apply(beta_ij_samples_br, c(2, 3), median)  # Median for each (S, T) pair
-# # need to match the sem data (52, > stan.data_sem$I) with the 64 from br$I
-# beta_ij_init_sem <- beta_ij_init_br[cbind(stan.data_sem$irow, stan.data_sem$icol)]
-# #length(beta_ij_init_sem)
-# #stan.data_br$I
-# # creating a function that can be plugged into the next models
-# init_function <- function() {
-#   list(
-#     beta_ij = beta_ij_init_sem
-#   )
-# }
-
-
-# figuring out how to get the posterior distributions (getting posteriors of ndd_betaij) ####
-# getting posterior distributions (http://mc-stan.org/bayesplot/)
-# posterior <- as.matrix(fit_br)
-# # # Check parameter names in the posterior object
-# str(posterior)
-# colnames(posterior)
-# # # Extract all ndd_betaij values
-# beta_ij_values <- as.data.frame(posterior[, grep("ndd_betaij", colnames(posterior))])
-# # # Create a faceted density plot
-# summary(beta_ij_values)
-# nrow(posterior)
-# subset_beta_ij <- beta_ij_values[, 1:20]
-# mcmc_dens(subset_beta_ij, facet_args = list(ncol = 5), adjust = 2)
+ndd_betaij_long_br <- ndd_betaij_long_br %>%
+  mutate(
+    species_name_br = focalID_br[species],
+    neighbor_name_br = neighbourID_br[neighbor]
+  )
 
 
 
-#length(beta_ij_init_br) == stan.data_sem$I 
-#str(init_list)
+# Calculate credible intervals for each focal-neighbor pair
+credible_intervals_br <- ndd_betaij_long_br %>%
+  group_by(species_name_br, neighbor_name_br) %>%
+  summarize(
+    lower = quantile(interaction, 0.025),
+    upper = quantile(interaction, 0.975),
+    mean = mean(interaction)
+  )
+
+# Plot credible intervals
+BR_credible_intervals <- ggplot(credible_intervals_br, aes(x = neighbor_name_br, y = mean, ymin = lower, ymax = upper, color = as.factor(species_name_br))) +
+  geom_point() +
+  geom_errorbar(width = 0.2) +
+  labs(title = "Mean and 95% Credible Intervals for Interactions at SEM",
+       x = "Neighbor Species", y = "Interaction Strength",
+       color = "Focal Species") + 
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)  # Rotate x-axis labels vertically
+  )
+
+# save credible intervals plot
+ggsave(path = "../../figures_tables",
+       filename = paste0("BR_credible_int_plot", ".png"),
+       plot = BR_credible_interval_plot,
+       width = 16,
+       height = 12
+)
+
+
+# Summarize interaction strengths by species and neighbor
+summary_stats_br <- ndd_betaij_long_br %>%
+  group_by(species_name_br, neighbor_name_br) %>%
+  summarize(
+    mean = mean(interaction),
+    lower = quantile(interaction, 0.025),
+    upper = quantile(interaction, 0.975),
+    .groups = "drop"
+  )
+
+print(summary_stats_br)
+write.csv(summary_stats_br, "summary_stats_br.csv")
+
+
 
 # SEM model fit ####
 fit_sem <- stan(file = 'joint_model.stan', 
@@ -448,11 +408,26 @@ fit_sem <- stan(file = 'joint_model.stan',
 
 
 print(summary(fit_sem, pars=c("gamma_i","ndd_betaij","ri_betaij"))$summary)
-rstan::traceplot(fit_sem, pars=c("response","effect"))
-rstan::stan_rhat(fit_sem, pars=c("response"))
+SEM_traceplot  <- rstan::traceplot(fit_sem, pars=c("response","effect"))
+SEM_rhat <- rstan::stan_rhat(fit_sem, pars=c("response"))
+
+# save traceplot
+ggsave(path = "../../figures_tables",
+       filename = paste0("SEM_traceplot_resp_eff", ".png"),
+       plot = SEM_traceplot,
+       width = 16,
+       height = 12
+)
+#save rhat plot
+ggsave(path = "../../figures_tables",
+       filename = paste0("BR_rhat_plot", ".png"),
+       plot = SEM_rhat,
+       width = 16,
+       height = 12
+)
 
 
-# Get the full posteriors ###### 
+# SEM posteriors ###### 
 joint.post.draws_sem <- extract.samples(fit_sem)
 
 ## ---  Get interaction estimates ###
@@ -460,7 +435,7 @@ inter_mat_sem <- aperm(joint.post.draws_sem$ndd_betaij, c(2, 3, 1))
 rownames(inter_mat_sem) <- focalID_sem
 colnames(inter_mat_sem) <- neighbourID_sem
 
-## getting the mean of all the posteriors  #####
+## Getting the mean of all the posteriors  #####
 mean_interactions_sem <- apply(inter_mat_sem, c(1, 2), mean)
 # want to save this to create the visualizations
 mean_interactions_sem_df <- as.data.frame(mean_interactions_sem)
@@ -470,6 +445,62 @@ mean_interactions_sem_df$RowNames <- rownames(mean_interactions_sem)
 mean_interactions_sem_df <- mean_interactions_sem_df[, c("RowNames", setdiff(colnames(mean_interactions_sem_df), "RowNames"))]
 
 write.csv(mean_interactions_sem_df, "mean_interaction_matrix_sem.csv", row.names = FALSE)
+
+# Uncertainty for SEM #####
+
+# Reshape ndd_betaij for summarization
+ndd_betaij_long_sem <- melt(joint.post.draws_sem$ndd_betaij, varnames = c("seeds", "species", "neighbor"), value.name = "interaction")
+
+ndd_betaij_long_sem <- ndd_betaij_long_sem %>%
+  mutate(
+    species_name_sem = focalID_sem[species],
+    neighbor_name_sem = neighbourID_sem[neighbor]
+  )
+
+
+
+# Calculate credible intervals for each focal-neighbor pair
+credible_intervals_sem <- ndd_betaij_long_sem %>%
+  group_by(species_name_sem, neighbor_name_sem) %>%
+  summarize(
+    lower = quantile(interaction, 0.025),
+    upper = quantile(interaction, 0.975),
+    mean = mean(interaction)
+  )
+
+# Plot credible intervals
+SEM_credible_intervals <- ggplot(credible_intervals_sem, aes(x = neighbor_name_sem, y = mean, ymin = lower, ymax = upper, color = as.factor(species_name_sem))) +
+  geom_point() +
+  geom_errorbar(width = 0.2) +
+  labs(title = "Mean and 95% Credible Intervals for Interactions at SEM",
+       x = "Neighbor Species", y = "Interaction Strength",
+       color = "Focal Species") + 
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)  # Rotate x-axis labels vertically
+  )
+
+
+# save credible intervals plot
+ggsave(path = "../../figures_tables",
+       filename = paste0("SEM_credible_int_plot", ".png"),
+       plot = SEM_credible_intervals,
+       width = 16,
+       height = 12
+)
+
+# Summarize interaction strengths by species and neighbor
+summary_stats_sem <- ndd_betaij_long_sem %>%
+  group_by(species_name_sem, neighbor_name_sem) %>%
+  summarize(
+    mean = mean(interaction),
+    lower = quantile(interaction, 0.025),
+    upper = quantile(interaction, 0.975),
+    .groups = "drop"
+  )
+
+print(summary_stats_sem)
+write.csv(summary_stats_sem, "summary_stats_sem.csv")
+
 
 
 
@@ -486,14 +517,29 @@ fit_rf <- stan(file = 'joint_model.stan',
                seed = stan.seed
 )
 
-#pairs(fit_rf, pars = c("response[1]", "effect[1]"))
 
 print(summary(fit_rf, pars=c("gamma_i","ndd_betaij","ri_betaij"))$summary)
-rstan::traceplot(fit_rf, pars=c("response","effect"))
-rstan::stan_rhat(fit_rf, pars=c("effect"))
+RF_traceplot <- rstan::traceplot(fit_rf, pars=c("response","effect"))
+RF_rhat <- rstan::stan_rhat(fit_rf, pars=c("effect"))
+
+# save traceplot
+ggsave(path = "../../figures_tables",
+       filename = paste0("RF_traceplot_resp_eff", ".png"),
+       plot = RF_traceplot,
+       width = 16,
+       height = 12
+)
+#save rhat plot
+ggsave(path = "../../figures_tables",
+       filename = paste0("RF_rhat_plot", ".png"),
+       plot = RF_rhat,
+       width = 16,
+       height = 12
+)
 
 
-# Get the full posteriors ###### 
+
+# RF posteriors #####
 joint.post.draws_rf <- extract.samples(fit_rf)
 
 ## ---  Get interaction estimates ###
@@ -501,7 +547,7 @@ inter_mat_rf <- aperm(joint.post.draws_rf$ndd_betaij, c(2, 3, 1))
 rownames(inter_mat_rf) <- focalID_rf
 colnames(inter_mat_rf) <- neighbourID_rf
 
-## getting the mean of all the posteriors  #####
+## RF mean of posteriors  #####
 mean_interactions_rf <- apply(inter_mat_rf, c(1, 2), mean)
 # want to save this to create the visualizations
 mean_interactions_rf_df <- as.data.frame(mean_interactions_rf)
@@ -516,18 +562,18 @@ write.csv(mean_interactions_rf_df, "mean_interaction_matrix_rf.csv", row.names =
 # uncertainty ########
 
 # Reshape ndd_betaij for summarization
-ndd_betaij_long <- melt(joint.post.draws_sem$ndd_betaij, varnames = c("seeds", "species", "neighbor"), value.name = "interaction")
+ndd_betaij_long_rf <- melt(joint.post.draws_rf$ndd_betaij, varnames = c("seeds", "species", "neighbor"), value.name = "interaction")
 
-ndd_betaij_long_sem <- ndd_betaij_long_sem %>%
+ndd_betaij_long_rf <- ndd_betaij_long_rf %>%
   mutate(
-    species_name_sem = focalID_sem[species],
-    neighbor_name_sem = neighbourID_sem[neighbor]
+    species_name_rf = focalID_rf[species],
+    neighbor_name_rf = neighbourID_rf[neighbor]
   )
 
 
 # Calculate credible intervals for each focal-neighbor pair
-credible_intervals_sem <- ndd_betaij_long_sem %>%
-  group_by(species_name_sem, neighbor_name_sem) %>%
+credible_intervals_rf <- ndd_betaij_long_rf %>%
+  group_by(species_name_rf, neighbor_name_rf) %>%
   summarize(
     lower = quantile(interaction, 0.025),
     upper = quantile(interaction, 0.975),
@@ -535,7 +581,7 @@ credible_intervals_sem <- ndd_betaij_long_sem %>%
   )
 
 # Plot credible intervals
-ggplot(credible_intervals_sem, aes(x = neighbor_name_sem, y = mean, ymin = lower, ymax = upper, color = as.factor(species_name_sem))) +
+RF_credible_intervals <- ggplot(credible_intervals_rf, aes(x = neighbor_name_rf, y = mean, ymin = lower, ymax = upper, color = as.factor(species_name_rf))) +
   geom_point() +
   geom_errorbar(width = 0.2) +
   labs(title = "Mean and 95% Credible Intervals for Interactions at SEM",
@@ -546,40 +592,18 @@ ggplot(credible_intervals_sem, aes(x = neighbor_name_sem, y = mean, ymin = lower
   )
 
 
-# using tidybayes #######
-
-ndd_betaij_samples_sem <- joint.post.draws_sem$ndd_betaij
-
-
-# Reshape ndd_betaij_samples into a tidy format
-ndd_betaij_tidy_sem <- melt(
-  ndd_betaij_samples_sem,
-  varnames = c("sample", "species", "neighbor"),
-  value.name = "interaction"
+# save credible intervals plot
+ggsave(path = "../../figures_tables",
+       filename = paste0("RF_credible_int_plot", ".png"),
+       plot = RF_credible_intervals,
+       width = 16,
+       height = 12
 )
 
-# Add species and neighbor names using focalID_br and neighbourID_br
-ndd_betaij_tidy_named_sem <- ndd_betaij_tidy_sem %>%
-  mutate(
-    species_name_sem = focalID_sem[species],
-    neighbor_name_sem = neighbourID_sem[neighbor]
-  )
-
-# Plot posterior distributions with named species and neighbors
-ggplot(ndd_betaij_tidy_named_sem, aes(x = interaction, fill = neighbor_name_sem)) +
-  geom_density(alpha = 0.5) +
-  facet_wrap(~ species_name_sem, scales = "free_y") +
-  labs(
-    title = "Posterior Distributions of Species Interaction Strengths SEM",
-    x = "Interaction Strength",
-    y = "Density",
-    fill = "Neighbor"
-  ) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for readability
 
 # Summarize interaction strengths by species and neighbor
-summary_stats_sem <- ndd_betaij_tidy_named_sem %>%
-  group_by(species_name_sem, neighbor_name_sem) %>%
+summary_stats_rf <- ndd_betaij_long_rf %>%
+  group_by(species_name_rf, neighbor_name_rf) %>%
   summarize(
     mean = mean(interaction),
     lower = quantile(interaction, 0.025),
@@ -587,10 +611,8 @@ summary_stats_sem <- ndd_betaij_tidy_named_sem %>%
     .groups = "drop"
   )
 
-print(summary_stats_sem)
-write.csv(summary_stats_sem, "summary_stats_sem.csv")
-
-
+print(summary_stats_rf)
+write.csv(summary_stats_rf, "summary_stats_rf.csv")
 
 
 
@@ -613,11 +635,25 @@ fit_wir <- stan(file = 'joint_model.stan',
 #pairs(fit_wir, pars = c("response[1]", "effect[1]"))
 
 print(summary(fit_wir, pars=c("gamma_i","ndd_betaij","ri_betaij"))$summary)
-rstan::traceplot(fit_wir, pars=c("response","effect"))
-rstan::stan_rhat(fit_wir, pars=c("effect"))
+WIR_traceplot <- rstan::traceplot(fit_wir, pars=c("response","effect"))
+
+ggsave(path = "../../figures_tables",
+       filename = paste0("WIR_traceplot", ".png"),
+       plot = WIR_traceplot,
+       width = 16,
+       height = 12
+)
+
+WIR_rhat <- rstan::stan_rhat(fit_wir, pars=c("effect"))
+ggsave(path = "../../figures_tables",
+       filename = paste0("WIR_rhat_plot", ".png"),
+       plot = WIR_rhat,
+       width = 16,
+       height = 12
+)
 
 
-# Get the full posteriors ###### 
+# WIR posteriors ###### 
 joint.post.draws_wir <- extract.samples(fit_wir)
 
 ## ---  Get interaction estimates ###
@@ -625,7 +661,7 @@ inter_mat_wir <- aperm(joint.post.draws_wir$ndd_betaij, c(2, 3, 1))
 rownames(inter_mat_wir) <- focalID_wir
 colnames(inter_mat_wir) <- neighbourID_wir
 
-## getting the mean of all the posteriors  #####
+## WIR mean of all the posteriors  #####
 mean_interactions_wir <- apply(inter_mat_wir, c(1, 2), mean)
 # want to save this to create the visualizations
 mean_interactions_wir_df <- as.data.frame(mean_interactions_wir)
@@ -635,4 +671,63 @@ mean_interactions_wir_df$RowNames <- rownames(mean_interactions_wir)
 mean_interactions_wir_df <- mean_interactions_wir_df[, c("RowNames", setdiff(colnames(mean_interactions_wir_df), "RowNames"))]
 
 write.csv(mean_interactions_wir_df, "mean_interaction_matrix_wir.csv", row.names = FALSE)
+
+
+
+# uncertainty ########
+
+# Reshape ndd_betaij for summarization
+ndd_betaij_long_wir <- melt(joint.post.draws_wir$ndd_betaij, varnames = c("seeds", "species", "neighbor"), value.name = "interaction")
+
+ndd_betaij_long_wir <- ndd_betaij_long_wir %>%
+  mutate(
+    species_name_wir = focalID_wir[species],
+    neighbor_name_wir = neighbourID_wir[neighbor]
+  )
+
+
+# Calculate credible intervals for each focal-neighbor pair
+credible_intervals_wir <- ndd_betaij_long_wir %>%
+  group_by(species_name_wir, neighbor_name_wir) %>%
+  summarize(
+    lower = quantile(interaction, 0.025),
+    upper = quantile(interaction, 0.975),
+    mean = mean(interaction)
+  )
+
+# Plot credible intervals
+wir_credible_intervals <- ggplot(credible_intervals_wir, aes(x = neighbor_name_wir, y = mean, ymin = lower, ymax = upper, color = as.factor(species_name_wir))) +
+  geom_point() +
+  geom_errorbar(width = 0.2) +
+  labs(title = "Mean and 95% Credible Intervals for Interactions at SEM",
+       x = "Neighbor Species", y = "Interaction Strength",
+       color = "Focal Species") + 
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)  # Rotate x-axis labels vertically
+  )
+
+
+# save credible intervals plot
+ggsave(path = "../../figures_tables",
+       filename = paste0("WIR_credible_int_plot", ".png"),
+       plot = wir_credible_intervals,
+       width = 16,
+       height = 12
+)
+
+
+# Summarize interaction strengths by species and neighbor
+summary_stats_wir <- ndd_betaij_long_wir %>%
+  group_by(species_name_wir, neighbor_name_wir) %>%
+  summarize(
+    mean = mean(interaction),
+    lower = quantile(interaction, 0.025),
+    upper = quantile(interaction, 0.975),
+    .groups = "drop"
+  )
+
+print(summary_stats_wir)
+write.csv(summary_stats_wir, "summary_stats_WIR.csv")
+
+
 
